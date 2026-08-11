@@ -21,11 +21,12 @@
 
 ## 当前开发门禁
 
-- 在实现完整应用前，先用实体 Android 设备验证静音起播、实际路由读取、耳机断连竞态和失败静音链路。
+- `0.1.0-lab` 仅为音频路由技术验证版；按 `docs/device-test-guide.md` 用实体 Android 设备验证静音起播、实际路由读取、耳机断连竞态和失败静音链路后，才能扩展正式闹钟。
 - 未解决 PRD 中的最低 Android 版本与兼容验证开放范围前，不把技术原型描述为可发布产品。
 - 验证不得通过减少隐私检查、隐藏阻断结果或启用扬声器降级来通过。
 
 ## 最小验证入口
 
-- 尚无 Android 构建命令；当前检查入口为 PRD 链接有效性、Markdown 结构和 `git status --short`。
-- 初始化 Android 工程后，应在本节补充最窄可用的构建和测试命令。
+- 状态机单元测试：`.\gradlew.bat :app:testDebugUnitTest`。
+- Android 静态检查与测试包：`.\gradlew.bat :app:lintDebug :app:assembleDebug`。
+- 核心安全结论必须补充实体机证据；本地构建通过不能替代 `docs/device-test-guide.md` 的测试。

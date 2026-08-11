@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">悄醒 · 路由实验室</string>
+    <string name="volume_value">%1$d / %2$d</string>
+    <string name="stop_countdown">立即静音并停止 · %1$d s</string>
+</resources>

@@ -6,7 +6,15 @@ HushWake 是一款面向 Android 的个人工具：在耳机输出通过验证�
 
 ## 当前阶段
 
-项目处于 0–1 产品设计与技术预研阶段，尚未初始化 Android 工程。当前首要任务是验证 Android 音频路由、耳机断连和失败静音链路，再确定最低系统版本及实现方案。
+项目已交付首个 Android 技术验证版 `0.1.0-lab`。它用于在实体设备上验证静音起播、实际路由读取、耳机断连和失败静音链路，不是完整闹钟产品，也不代表已经通过发布门禁。
+
+当前版本包含：
+
+- API 31–35 兼容验证与 API 36+ 全路由强验证的明确分级。
+- 双层静音起播：PCM 零采样与 `AudioTrack` 增益 0。
+- 路由通过后 10 秒低增益测试音；路由不确定、超时或断连时先静音再停止。
+- 仅本地保存的粗粒度诊断摘要，不含设备名称、地址、稳定标识或精确闹钟时间。
+- 面向手机的单页“路由实验室”界面。
 
 ## 核心原则
 
@@ -17,7 +25,14 @@ HushWake 是一款面向 Android 的个人工具：在耳机输出通过验证�
 ## 产品文档
 
 - [HushWake Android App PRD](docs/hush-wake-prd.md)
+- [0.1.0-lab 实体机测试指南](docs/device-test-guide.md)
 
-## 开发状态
+## 构建与验证
 
-Android 技术栈、最低系统版本、模块结构和验证命令将在音频路由技术原型完成后确定，并同步更新本文件。
+需要 JDK 17 与 Android SDK 36：
+
+```powershell
+.\gradlew.bat :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+```
+
+生成的测试包位于 `app/build/outputs/apk/debug/app-debug.apk`。构建和单元测试通过只能证明代码与状态机满足本地契约；扬声器零误播仍必须按实体机测试指南验证。
