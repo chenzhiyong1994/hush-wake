@@ -68,7 +68,7 @@ public final class AudioRouteInspector {
             return blockingReason == null;
         }
 
-        AudioDeviceInfo preferredTarget() {
+        public AudioDeviceInfo preferredTarget() {
             return preferredTarget;
         }
     }

@@ -5,7 +5,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $packageName = "com.hushwake.app"
-$componentName = "$packageName/.MainActivity"
+$componentName = "$packageName/.HomeActivity"
 
 & $Adb install -r $Apk | Out-Host
 if ($LASTEXITCODE -ne 0) {
@@ -24,7 +24,8 @@ $appProcessId = (& $Adb shell pidof $packageName).Trim()
 $crashLog = (& $Adb logcat -b crash -d -v threadtime) -join "`n"
 $appCrashed = $crashLog -match "Process: $([regex]::Escape($packageName))"
 $activities = (& $Adb shell dumpsys activity activities) -join "`n"
-$isForeground = $activities -match "topResumedActivity=.*$([regex]::Escape($componentName))"
+$isForeground =
+    $activities -match "(topResumedActivity|mResumedActivity|ResumedActivity):?.*$([regex]::Escape($componentName))"
 
 if (-not $appProcessId -or $appCrashed -or -not $isForeground) {
     if ($crashLog) {

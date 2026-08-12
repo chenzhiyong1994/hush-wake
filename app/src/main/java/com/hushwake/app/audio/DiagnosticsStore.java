@@ -21,4 +21,8 @@ public final class DiagnosticsStore {
     public String load() {
         return preferences.getString(LAST_REPORT, "尚无测试记录");
     }
+
+    public void clear() {
+        preferences.edit().clear().commit();
+    }
 }

@@ -27,8 +27,14 @@ import android.widget.Toast;
 import com.hushwake.app.audio.AudioRouteInspector;
 import com.hushwake.app.audio.AudioSafetyEngine;
 import com.hushwake.app.audio.DiagnosticsStore;
+import com.hushwake.app.audio.DeviceIdentity;
+import com.hushwake.app.audio.PrivatePlaybackEngine;
 import com.hushwake.app.audio.TestReport;
+import com.hushwake.app.data.DeviceVerificationRepository;
+import com.hushwake.app.domain.DeviceVerification;
 import com.hushwake.app.guard.OutputGuard;
+import com.hushwake.app.platform.PlatformVersion;
+import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Deque;
 
@@ -346,11 +352,33 @@ public final class MainActivity extends Activity implements AudioSafetyEngine.Li
 
     private void saveManualResult(TestReport report, boolean passed) {
         diagnosticsStore.save(report);
+        DeviceIdentity identity = engine.currentTargetIdentity();
+        if (passed && identity == null) {
+            passed = false;
+            report =
+                    report.withResult(
+                            "人工确认失败",
+                            "无法为当前耳机生成本机身份；正式闹钟与白噪音保持有声阻断");
+            diagnosticsStore.save(report);
+        }
+        if (identity != null) {
+            new DeviceVerificationRepository(this)
+                    .save(
+                            new DeviceVerification(
+                                    identity.hash(),
+                                    identity.typeLabel(),
+                                    PlatformVersion.androidMajor(),
+                                    PrivatePlaybackEngine.AUDIO_ENGINE_VERSION,
+                                    Instant.now(),
+                                    passed));
+        }
         reportText.setText(report.format());
         statusTitle.setText(passed ? "本次测试通过" : "本次测试失败");
         statusTitle.setTextColor(passed ? ACID : DANGER);
         statusDetail.setText(
-                passed ? "该结论仅适用于本次实体机测试" : "保持静音；不要把该组合用于私密闹钟");
+                passed
+                        ? "已绑定当前耳机，有效期 90 天；系统或音频引擎升级后需重测"
+                        : "保持静音；该耳机组合不得用于私密闹钟");
         deviceConfirmation.setChecked(false);
     }
 

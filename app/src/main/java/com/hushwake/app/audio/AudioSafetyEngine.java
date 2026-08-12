@@ -41,10 +41,12 @@ public final class AudioSafetyEngine {
     private static final float TEST_GAIN = 0.12f;
 
     private final AudioManager audioManager;
+    private final Context context;
     private final AudioRouteInspector inspector = new AudioRouteInspector();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final ExecutorService audioExecutor = Executors.newSingleThreadExecutor();
     private final AtomicBoolean pcmAudible = new AtomicBoolean(false);
+    private final MuteLatencyTracker muteLatencyTracker = new MuteLatencyTracker();
     private final Listener listener;
 
     private OutputGuard guard = new OutputGuard();
@@ -53,7 +55,6 @@ public final class AudioSafetyEngine {
     private AudioTrack audioTrack;
     private volatile boolean writerRunning;
     private long routeDeadlineMs;
-    private long routeSignalNanos = -1L;
     private long muteLatencyMs = -1L;
     private long testEndsAtMs;
     private String targetType = "无";
@@ -62,8 +63,12 @@ public final class AudioSafetyEngine {
 
     private final AudioRouting.OnRoutingChangedListener routingListener =
             router -> {
-                routeSignalNanos = SystemClock.elapsedRealtimeNanos();
-                checkRouteNow();
+                muteLatencyTracker.onRouteSignal(SystemClock.elapsedRealtimeNanos());
+                if (guard.state() == OutputGuard.State.AUDIBLE) {
+                    failForRouteChange(OutputGuard.BlockReason.ROUTE_LOST);
+                } else {
+                    checkRouteNow();
+                }
             };
 
     private final AudioDeviceCallback deviceCallback =
@@ -73,7 +78,7 @@ public final class AudioSafetyEngine {
                     if (targetDevice != null) {
                         for (AudioDeviceInfo removed : removedDevices) {
                             if (removed.getId() == targetDevice.getId()) {
-                                routeSignalNanos = SystemClock.elapsedRealtimeNanos();
+                                muteLatencyTracker.onRouteSignal(SystemClock.elapsedRealtimeNanos());
                                 failForRouteChange(OutputGuard.BlockReason.ROUTE_LOST);
                                 return;
                             }
@@ -88,7 +93,11 @@ public final class AudioSafetyEngine {
                     listener.onSnapshot(snapshot);
                     if (guard.state() == OutputGuard.State.AUDIBLE
                             || guard.state() == OutputGuard.State.VERIFYING_ROUTE) {
-                        routeSignalNanos = SystemClock.elapsedRealtimeNanos();
+                        muteLatencyTracker.onRouteSignal(SystemClock.elapsedRealtimeNanos());
+                        if (guard.state() == OutputGuard.State.AUDIBLE) {
+                            failForRouteChange(OutputGuard.BlockReason.ROUTE_LOST);
+                            return;
+                        }
                         if (snapshot.personalOutputTypes().size() != 1) {
                             failForRouteChange(OutputGuard.BlockReason.MULTIPLE_COMPATIBLE_OUTPUTS);
                         } else {
@@ -116,8 +125,14 @@ public final class AudioSafetyEngine {
             };
 
     public AudioSafetyEngine(Context context, Listener listener) {
+        this.context = context.getApplicationContext();
         this.audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
         this.listener = listener;
+    }
+
+    /** Returns only the irreversible local identity for the currently tested target. */
+    public DeviceIdentity currentTargetIdentity() {
+        return DeviceFingerprint.create(context, targetDevice);
     }
 
     public void refreshSnapshot() {
@@ -149,7 +164,7 @@ public final class AudioSafetyEngine {
         targetType = AudioRouteInspector.typeLabel(targetDevice.getType());
         routeSummary = "尚未建立";
         verificationLabel = "未通过";
-        routeSignalNanos = -1L;
+        muteLatencyTracker.onRouteVerifiedSafe();
         muteLatencyMs = -1L;
         listener.onLog("01  应用增益归零");
         dispatch(OutputGuard.Event.begin());
@@ -315,6 +330,8 @@ public final class AudioSafetyEngine {
             return;
         }
 
+        muteLatencyTracker.onRouteVerifiedSafe();
+
         if (state == OutputGuard.State.VERIFYING_ROUTE) {
             OutputGuard.VerificationLevel level =
                     evaluation.status() == AudioRouteInspector.RouteStatus.SAFE_STRONG
@@ -336,7 +353,7 @@ public final class AudioSafetyEngine {
     private void handlePlayerError() {
         listener.onLog("播放器写入失败，执行失败静音");
         if (guard.state() == OutputGuard.State.AUDIBLE) {
-            routeSignalNanos = SystemClock.elapsedRealtimeNanos();
+            muteLatencyTracker.onRouteSignal(SystemClock.elapsedRealtimeNanos());
             dispatch(OutputGuard.Event.routeLost(OutputGuard.BlockReason.PLAYER_ERROR));
         } else {
             enterVerifyingThenReject(OutputGuard.BlockReason.PLAYER_ERROR);
@@ -394,10 +411,9 @@ public final class AudioSafetyEngine {
                 // A concurrently released track is already unable to output app audio.
             }
         }
-        if (routeSignalNanos >= 0L) {
-            muteLatencyMs =
-                    Math.max(0L, (SystemClock.elapsedRealtimeNanos() - routeSignalNanos) / 1_000_000L);
-            routeSignalNanos = -1L;
+        long measuredLatency = muteLatencyTracker.consumeOnMute(SystemClock.elapsedRealtimeNanos());
+        if (measuredLatency >= 0L) {
+            muteLatencyMs = measuredLatency;
         }
         mainHandler.removeCallbacks(testFinisher);
         mainHandler.removeCallbacks(countdownTicker);
