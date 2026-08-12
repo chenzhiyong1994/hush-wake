@@ -6,7 +6,7 @@ HushWake 是一款面向 Android 的个人工具：在耳机输出通过验证�
 
 ## 当前阶段
 
-项目已交付首个 Android 技术验证版 `0.1.0-lab`。它用于在实体设备上验证静音起播、实际路由读取、耳机断连和失败静音链路，不是完整闹钟产品，也不代表已经通过发布门禁。
+项目已交付 Android 技术验证版 `0.1.1-lab`。它用于在实体设备上验证静音起播、实际路由读取、耳机断连和失败静音链路，不是完整闹钟产品，也不代表已经通过发布门禁。
 
 当前版本包含：
 
@@ -25,7 +25,7 @@ HushWake 是一款面向 Android 的个人工具：在耳机输出通过验证�
 ## 产品文档
 
 - [HushWake Android App PRD](docs/hush-wake-prd.md)
-- [0.1.0-lab 实体机测试指南](docs/device-test-guide.md)
+- [0.1.1-lab 实体机测试指南](docs/device-test-guide.md)
 
 ## 构建与验证
 
@@ -35,4 +35,4 @@ HushWake 是一款面向 Android 的个人工具：在耳机输出通过验证�
 .\gradlew.bat :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
 ```
 
-生成的测试包位于 `app/build/outputs/apk/debug/app-debug.apk`。构建和单元测试通过只能证明代码与状态机满足本地契约；扬声器零误播仍必须按实体机测试指南验证。
+生成的测试包位于 `app/build/outputs/apk/debug/app-debug.apk`。ADB 连接测试设备后可运行 `.\scripts\verify-app-launch.ps1` 检查冷启动、前台 Activity 和崩溃日志。构建和单元测试通过只能证明代码与状态机满足本地契约；扬声器零误播仍必须按实体机测试指南验证。

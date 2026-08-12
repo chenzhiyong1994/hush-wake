@@ -1,4 +1,4 @@
-# HushWake 0.1.0-lab 实体机测试指南
+# HushWake 0.1.1-lab 实体机测试指南
 
 本指南用于验证技术实验版的音频安全链路，不用于证明完整闹钟可靠性。任何一次扬声器误播都应立即停止扩展功能并保留诊断结果。
 
@@ -18,6 +18,8 @@ adb install -r app\build\outputs\apk\debug\app-debug.apk
 ```
 
 也可以把 APK 复制到手机后手动安装。包名是 `com.hushwake.app`，应用名是“悄醒 · 路由实验室”。
+
+`0.1.1-lab` 已在标准 Android 14 / API 34 设备上通过冷启动回归；如果曾安装 `0.1.0-lab`，可直接覆盖安装。
 
 ## 用例 A：正常路由
 

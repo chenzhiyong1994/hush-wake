@@ -64,9 +64,9 @@ public final class MainActivity extends Activity implements AudioSafetyEngine.Li
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        configureWindow();
         diagnosticsStore = new DiagnosticsStore(this);
         setContentView(buildScreen());
+        configureWindow();
         engine = new AudioSafetyEngine(this, this);
         reportText.setText(diagnosticsStore.load());
         engine.refreshSnapshot();
@@ -99,7 +99,7 @@ public final class MainActivity extends Activity implements AudioSafetyEngine.Li
     private void configureWindow() {
         Window window = getWindow();
         window.setNavigationBarContrastEnforced(false);
-        WindowInsetsController controller = window.getInsetsController();
+        WindowInsetsController controller = window.getDecorView().getWindowInsetsController();
         if (controller != null) {
             controller.setSystemBarsAppearance(
                     0,
