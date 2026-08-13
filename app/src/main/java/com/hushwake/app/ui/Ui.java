@@ -17,15 +17,15 @@ import android.widget.Spinner;
 import android.widget.TextView;
 
 public final class Ui {
-    public static final int INK = Color.rgb(8, 15, 13);
-    public static final int PANEL = Color.rgb(16, 27, 24);
-    public static final int RAISED = Color.rgb(22, 36, 31);
-    public static final int LINE = Color.rgb(49, 69, 61);
-    public static final int PAPER = Color.rgb(239, 246, 236);
-    public static final int MUTED = Color.rgb(157, 176, 166);
-    public static final int ACID = Color.rgb(233, 255, 112);
-    public static final int WARM = Color.rgb(255, 184, 107);
-    public static final int DANGER = Color.rgb(255, 126, 112);
+    public static final int INK = Color.rgb(9, 15, 16);
+    public static final int PANEL = Color.rgb(17, 25, 26);
+    public static final int RAISED = Color.rgb(24, 35, 35);
+    public static final int LINE = Color.rgb(42, 57, 56);
+    public static final int PAPER = Color.rgb(245, 242, 233);
+    public static final int MUTED = Color.rgb(148, 164, 160);
+    public static final int ACID = Color.rgb(246, 191, 111);
+    public static final int WARM = Color.rgb(126, 193, 176);
+    public static final int DANGER = Color.rgb(242, 124, 112);
 
     private Ui() {}
 
@@ -40,16 +40,24 @@ public final class Ui {
     }
 
     public static TextView eyebrow(Context context, String value) {
-        TextView view = text(context, value, 11, WARM, Typeface.MONOSPACE);
-        view.setLetterSpacing(.12f);
+        TextView view = text(context, value, 11, MUTED, Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        view.setLetterSpacing(.08f);
         return view;
+    }
+
+    public static Typeface display() {
+        return Typeface.create("sans-serif", Typeface.NORMAL);
+    }
+
+    public static Typeface medium() {
+        return Typeface.create("sans-serif-medium", Typeface.NORMAL);
     }
 
     public static LinearLayout card(Context context, int color) {
         LinearLayout card = new LinearLayout(context);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(context, 18), dp(context, 18), dp(context, 18), dp(context, 18));
-        card.setBackground(round(context, color, 20, LINE));
+        card.setPadding(dp(context, 16), dp(context, 16), dp(context, 16), dp(context, 16));
+        card.setBackground(round(context, color, 24, LINE));
         card.setLayoutParams(new LinearLayout.LayoutParams(-1, -2));
         return card;
     }
@@ -59,15 +67,41 @@ public final class Ui {
         button.setText(label);
         button.setAllCaps(false);
         button.setTextSize(14);
-        button.setTypeface(Typeface.DEFAULT_BOLD);
+        button.setTypeface(medium());
         button.setGravity(Gravity.CENTER);
         button.setMinHeight(dp(context, 52));
         button.setTextColor(primary ? INK : PAPER);
-        GradientDrawable shape = round(context, primary ? ACID : Color.TRANSPARENT, 16, primary ? ACID : LINE);
+        GradientDrawable shape = round(context, primary ? ACID : RAISED, 18, primary ? ACID : LINE);
         button.setBackground(
                 new RippleDrawable(ColorStateList.valueOf(Color.argb(50, 255, 255, 255)), shape, null));
         button.setLayoutParams(new LinearLayout.LayoutParams(-1, -2));
         return button;
+    }
+
+    public static TextView choice(Context context, String label, boolean selected) {
+        TextView choice = text(context, label, 13, selected ? INK : PAPER, medium());
+        choice.setGravity(Gravity.CENTER);
+        choice.setMinHeight(dp(context, 42));
+        choice.setPadding(dp(context, 10), dp(context, 9), dp(context, 10), dp(context, 9));
+        choice.setBackground(
+                new RippleDrawable(
+                        ColorStateList.valueOf(Color.argb(45, 255, 255, 255)),
+                        round(context, selected ? ACID : RAISED, 16, selected ? ACID : LINE),
+                        null));
+        return choice;
+    }
+
+    public static void setChoiceSelected(TextView choice, boolean selected) {
+        choice.setTextColor(selected ? INK : PAPER);
+        choice.setBackground(
+                new RippleDrawable(
+                        ColorStateList.valueOf(Color.argb(45, 255, 255, 255)),
+                        round(
+                                choice.getContext(),
+                                selected ? ACID : RAISED,
+                                16,
+                                selected ? ACID : LINE),
+                        null));
     }
 
     public static Spinner spinner(Context context, String[] values) {

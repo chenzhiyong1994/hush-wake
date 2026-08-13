@@ -64,6 +64,9 @@ Invoke-Adb -Arguments @("install", "-r", $Apk) | Out-Host
 if (-not $KeepData) {
     Invoke-Adb -Arguments @("shell", "pm", "clear", $packageName) | Out-Null
 }
+Invoke-Adb -Arguments @("shell", "pm", "grant", $packageName, "android.permission.BLUETOOTH_CONNECT") | Out-Null
+Invoke-Adb -Arguments @("shell", "pm", "grant", $packageName, "android.permission.POST_NOTIFICATIONS") | Out-Null
+Invoke-Adb -Arguments @("shell", "cmd", "media_session", "volume", "--stream", "3", "--set", "5") | Out-Null
 Invoke-Adb -Arguments @("logcat", "-c") | Out-Null
 Invoke-Adb -Arguments @("shell", "am", "force-stop", $packageName) | Out-Null
 Invoke-Adb -Arguments @("shell", "am", "start", "-W", "-n", $componentName) | Out-Host
@@ -74,23 +77,36 @@ $onboarding = $initial.SelectSingleNode("//node[@text='HUSHWAKE  /  悄醒']")
 if ($onboarding) {
     Tap-UiText "我了解当前输出会随耳机连接状态自动选择"
     Tap-UiText "开始使用"
-    Assert-UiText "HUSHWAKE  /  ALARMS"
+    Assert-UiText "几点叫醒你？"
 }
 
 $screens = @(
-    @{ Tab = "闹钟"; Marker = "HUSHWAKE  /  ALARMS" },
-    @{ Tab = "助眠声"; Marker = "SLEEP SOUNDS  /  真实录音" }
+    @{ Tab = "闹钟"; Marker = "几点叫醒你？" },
+    @{ Tab = "助眠声"; Marker = "想听什么入睡？" }
 )
 foreach ($screen in $screens) {
     Tap-UiText $screen.Tab
     Assert-UiText $screen.Marker
 }
 
+Assert-UiText "声音库"
+Tap-UiText "播放"
+Assert-UiText "暂停"
+Assert-UiText "停止"
+$playing = Get-UiXml
+$minuteLabels = $playing.SelectNodes("//node[contains(@text,'分钟')]")
+if ($minuteLabels.Count -ne 1) {
+    throw "Expected one live sleep timer label while playing, found $($minuteLabels.Count)"
+}
+Tap-UiText "停止"
+
 Tap-UiText "闹钟"
+Assert-UiText "不同于普通闹钟：悄醒只用媒体音播放，跟随手机媒体音量；连接耳机后只走已验证耳机，断连也不会转到扬声器。"
 Tap-UiText "+  新建闹钟"
-Assert-UiText "NEW ALARM"
+Assert-UiText "新闹钟"
 Invoke-Adb -Arguments @("shell", "input", "swipe", "540", "2050", "540", "450", "500") | Out-Null
 Start-Sleep -Milliseconds 500
+Assert-UiText "铃声库"
 Assert-UiText "保存闹钟"
 Invoke-Adb -Arguments @("shell", "input", "keyevent", "BACK") | Out-Null
 Start-Sleep -Milliseconds 500
@@ -101,4 +117,4 @@ if (-not $appProcessId -or $crashLog -match "Process: $([regex]::Escape($package
     throw "HushWake smoke test found a crash or missing process`n$crashLog"
 }
 
-Write-Output "PASS: onboarding, two primary screens, and simplified alarm editor are alive with PID $appProcessId"
+Write-Output "PASS: onboarding, product promise, six-sound libraries, single live timer, adjacent playback controls, and alarm editor are alive with PID $appProcessId"

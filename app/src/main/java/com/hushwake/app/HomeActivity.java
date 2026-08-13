@@ -12,12 +12,15 @@ import android.graphics.Typeface;
 import android.media.AudioManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.FrameLayout;
+import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.Spinner;
@@ -33,6 +36,8 @@ import com.hushwake.app.data.AppPreferences;
 import com.hushwake.app.domain.Alarm;
 import com.hushwake.app.domain.AlarmTimeCalculator;
 import com.hushwake.app.noise.NoiseSessionStore;
+import com.hushwake.app.noise.NoiseTimerPresentation;
+import com.hushwake.app.noise.SleepSoundCatalog;
 import com.hushwake.app.noise.WhiteNoiseService;
 import com.hushwake.app.reliability.ReadinessChecker;
 import com.hushwake.app.ui.Ui;
@@ -57,12 +62,13 @@ public final class HomeActivity extends Activity {
     private LinearLayout navigation;
     private String currentScreen = SCREEN_ALARMS;
     private boolean noiseReceiverRegistered;
+    private final Handler noiseTimerHandler = new Handler(Looper.getMainLooper());
 
     private final BroadcastReceiver noiseUpdates =
             new BroadcastReceiver() {
                 @Override
                 public void onReceive(Context context, Intent intent) {
-                    if (SCREEN_NOISE.equals(currentScreen)) showScreen(SCREEN_NOISE);
+                    if (SCREEN_NOISE.equals(currentScreen)) showScreen(SCREEN_NOISE, false);
                 }
             };
 
@@ -108,6 +114,7 @@ public final class HomeActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        noiseTimerHandler.removeCallbacksAndMessages(null);
         if (noiseReceiverRegistered) {
             try {
                 unregisterReceiver(noiseUpdates);
@@ -144,14 +151,21 @@ public final class HomeActivity extends Activity {
     }
 
     private void showScreen(String requested) {
+        showScreen(requested, true);
+    }
+
+    private void showScreen(String requested, boolean animate) {
+        noiseTimerHandler.removeCallbacksAndMessages(null);
         String screen = sanitizeScreen(requested);
         currentScreen = screen;
         content.removeAllViews();
         View page = SCREEN_NOISE.equals(screen) ? noisePage() : alarmsPage();
-        page.setAlpha(0f);
-        page.setTranslationY(Ui.dp(this, 8));
         content.addView(page, new FrameLayout.LayoutParams(-1, -1));
-        page.animate().alpha(1f).translationY(0f).setDuration(180L).start();
+        if (animate) {
+            page.setAlpha(0f);
+            page.setTranslationY(Ui.dp(this, 8));
+            page.animate().alpha(1f).translationY(0f).setDuration(180L).start();
+        }
         for (int i = 0; i < navigation.getChildCount(); i++) {
             TextView item = (TextView) navigation.getChildAt(i);
             boolean selected = screen.equals(item.getTag());
@@ -215,8 +229,17 @@ public final class HomeActivity extends Activity {
     private View alarmsPage() {
         ScrollView scroll = scroll();
         LinearLayout root = pageRoot(scroll);
-        root.addView(Ui.eyebrow(this, "HUSHWAKE  /  ALARMS"));
-        root.addView(hero("今晚，放心睡。", 34));
+        root.addView(Ui.eyebrow(this, "闹钟"));
+        root.addView(hero("几点叫醒你？", 36));
+        TextView promise =
+                Ui.text(
+                        this,
+                        "不同于普通闹钟：悄醒只用媒体音播放，跟随手机媒体音量；连接耳机后只走已验证耳机，断连也不会转到扬声器。",
+                        13,
+                        Ui.MUTED,
+                        Typeface.DEFAULT);
+        promise.setPadding(0, 0, 0, Ui.dp(this, 20));
+        root.addView(promise);
         ReadinessChecker.Status readiness = ReadinessChecker.inspect(this);
         root.addView(outputBanner(readiness));
         View permission = alarmPermissionBanner(readiness);
@@ -229,17 +252,16 @@ public final class HomeActivity extends Activity {
         List<Alarm> items = alarms.listAll();
         if (items.isEmpty()) {
             LinearLayout empty = Ui.card(this, Ui.PANEL);
-            empty.addView(Ui.eyebrow(this, "NO ALARMS"));
             TextView title =
                     Ui.text(
                             this,
                             "还没有闹钟",
-                            23,
+                            20,
                             Ui.PAPER,
-                            Typeface.create("serif", Typeface.BOLD));
+                            Ui.medium());
             title.setPadding(0, Ui.dp(this, 9), 0, Ui.dp(this, 5));
             empty.addView(title);
-            empty.addView(Ui.text(this, "选一个时间，其余交给悄醒。", 13, Ui.MUTED, Typeface.DEFAULT));
+            empty.addView(Ui.text(this, "先设一个时间，之后随时可以调整。", 13, Ui.MUTED, Typeface.DEFAULT));
             root.addView(empty);
         } else {
             AlarmSessionStore.Snapshot active = new AlarmSessionStore(this).load();
@@ -263,9 +285,9 @@ public final class HomeActivity extends Activity {
                 Ui.text(
                         this,
                         String.format(java.util.Locale.ROOT, "%02d:%02d", alarm.hour(), alarm.minute()),
-                        39,
+                        42,
                         alarm.enabled() ? Ui.PAPER : Ui.MUTED,
-                        Typeface.create("serif", Typeface.BOLD));
+                        Ui.display());
         top.addView(time, new LinearLayout.LayoutParams(0, -2, 1));
         Switch enabled = new Switch(this);
         enabled.setChecked(alarm.enabled());
@@ -277,15 +299,8 @@ public final class HomeActivity extends Activity {
         String meta = repeatSummary(alarm.repeatMask());
         if (!alarm.label().isBlank()) meta += "  ·  " + alarm.label();
         TextView summary = Ui.text(this, meta, 13, Ui.MUTED, Typeface.DEFAULT);
-        summary.setPadding(0, Ui.dp(this, 1), 0, Ui.dp(this, 9));
+        summary.setPadding(0, Ui.dp(this, 1), 0, 0);
         card.addView(summary);
-        card.addView(
-                Ui.text(
-                        this,
-                        alarm.enabled() ? "已开启" : "已关闭",
-                        12,
-                        alarm.enabled() ? Ui.ACID : Ui.MUTED,
-                        Typeface.DEFAULT_BOLD));
         if (isActiveOccurrence(alarm.id(), active)) {
             Button stop = Ui.button(this, "正在响铃 · 立即停止", false);
             Ui.marginTop(stop, 12);
@@ -307,10 +322,14 @@ public final class HomeActivity extends Activity {
                                                     java.util.Locale.SIMPLIFIED_CHINESE)
                                             .format(next.atZone(ZoneId.systemDefault())),
                             12,
-                            Ui.MUTED,
-                            Typeface.DEFAULT);
-            nextView.setPadding(0, Ui.dp(this, 5), 0, 0);
+                            Ui.WARM,
+                            Ui.medium());
+            nextView.setPadding(0, Ui.dp(this, 9), 0, 0);
             card.addView(nextView);
+        } else {
+            TextView off = Ui.text(this, "已关闭", 12, Ui.MUTED, Ui.medium());
+            off.setPadding(0, Ui.dp(this, 9), 0, 0);
+            card.addView(off);
         }
         card.setOnClickListener(
                 v ->
@@ -361,74 +380,129 @@ public final class HomeActivity extends Activity {
     private View noisePage() {
         ScrollView scroll = scroll();
         LinearLayout root = pageRoot(scroll);
-        root.addView(Ui.eyebrow(this, "SLEEP SOUNDS  /  真实录音"));
-        root.addView(hero("把房间，调安静一点。", 34));
+        root.addView(Ui.eyebrow(this, "助眠声"));
+        root.addView(hero("想听什么入睡？", 36));
         ReadinessChecker.Status readiness = ReadinessChecker.inspect(this);
         root.addView(outputBanner(readiness));
-        root.addView(Ui.space(this, 14));
+        root.addView(Ui.space(this, 18));
 
         NoiseSessionStore.Snapshot session = new NoiseSessionStore(this).load();
-        LinearLayout status = Ui.card(this, Ui.RAISED);
-        status.addView(
-                Ui.text(
-                        this,
-                        WhiteNoiseService.soundLabel(session.soundId()),
-                        25,
-                        Ui.PAPER,
-                        Typeface.create("serif", Typeface.BOLD)));
-        String stateText = session.detail();
-        if (session.endsAtEpochMs() > System.currentTimeMillis()
-                && !"stopped".equals(session.state())) {
-            long minutes =
-                    Math.max(
-                            0L,
-                            (session.endsAtEpochMs() - System.currentTimeMillis() + 59_999L)
-                                    / 60_000L);
-            stateText += " · 约 " + minutes + " 分钟后结束";
+        NoiseTimerPresentation.ViewState timerPresentation =
+                NoiseTimerPresentation.resolve(
+                        session.state(),
+                        session.endsAtEpochMs(),
+                        System.currentTimeMillis(),
+                        preferences.noiseTimerMinutes(),
+                        session.fadeSeconds());
+        boolean active = timerPresentation.active();
+        String selectedSoundId =
+                active
+                        ? SleepSoundCatalog.normalizeId(session.soundId())
+                        : SleepSoundCatalog.normalizeId(preferences.noiseSoundId());
+
+        LinearLayout libraryTitle = new LinearLayout(this);
+        libraryTitle.setGravity(Gravity.CENTER_VERTICAL);
+        libraryTitle.addView(
+                Ui.text(this, "声音库", 16, Ui.PAPER, Ui.medium()),
+                new LinearLayout.LayoutParams(0, -2, 1));
+        libraryTitle.addView(
+                Ui.text(this, "左右滑动 · 6 种真实录音", 11, Ui.MUTED, Typeface.DEFAULT));
+        root.addView(libraryTitle);
+        root.addView(Ui.space(this, 10));
+        HorizontalScrollView soundStrip = new HorizontalScrollView(this);
+        soundStrip.setHorizontalScrollBarEnabled(false);
+        soundStrip.setClipToPadding(false);
+        LinearLayout soundChoices = new LinearLayout(this);
+        soundChoices.setOrientation(LinearLayout.HORIZONTAL);
+        List<SleepSoundCatalog.Item> sounds = SleepSoundCatalog.all();
+        for (int i = 0; i < sounds.size(); i++) {
+            SleepSoundCatalog.Item item = sounds.get(i);
+            String soundId = item.id();
+            boolean selected = soundId.equals(selectedSoundId);
+            LinearLayout choice = soundChoice(item, selected);
+            choice.setOnClickListener(v -> selectSleepSound(soundId, session, active));
+            LinearLayout.LayoutParams params =
+                    new LinearLayout.LayoutParams(Ui.dp(this, 116), Ui.dp(this, 140));
+            if (i > 0) params.leftMargin = Ui.dp(this, 10);
+            soundChoices.addView(choice, params);
         }
-        TextView state = Ui.text(this, stateText, 13, Ui.ACID, Typeface.DEFAULT_BOLD);
-        state.setPadding(0, Ui.dp(this, 7), 0, 0);
-        status.addView(state);
-        root.addView(status);
+        soundStrip.addView(soundChoices, new HorizontalScrollView.LayoutParams(-2, -1));
+        root.addView(soundStrip, new LinearLayout.LayoutParams(-1, Ui.dp(this, 140)));
         root.addView(Ui.space(this, 14));
 
-        LinearLayout controls = Ui.card(this, Ui.PANEL);
-        controls.addView(Ui.eyebrow(this, "AMBIENCE  /  离线循环"));
-        Spinner sound = Ui.spinner(this, new String[] {"绵密夜雨", "林间溪流", "轻柔壁炉"});
-        sound.setSelection(
-                indexOf(
-                        new String[] {"rain", "stream", "fireplace"},
-                        preferences.noiseSoundId()));
-        addField(controls, "声音", sound);
+        LinearLayout status = Ui.card(this, active ? Ui.RAISED : Ui.PANEL);
+        LinearLayout copy = new LinearLayout(this);
+        copy.setOrientation(LinearLayout.VERTICAL);
+        copy.addView(Ui.eyebrow(this, active ? "正在播放" : "准备播放"));
+        TextView soundName =
+                Ui.text(this, WhiteNoiseService.soundLabel(selectedSoundId), 21, Ui.PAPER, Ui.medium());
+        soundName.setPadding(0, Ui.dp(this, 5), 0, 0);
+        copy.addView(soundName);
+        status.addView(copy);
+        TextView state = Ui.text(this, session.detail(), 12, Ui.MUTED, Typeface.DEFAULT);
+        state.setPadding(0, Ui.dp(this, 9), 0, 0);
+        status.addView(state);
+        TextView remaining =
+                Ui.text(
+                        this,
+                        active
+                                ? timerPresentation.remainingLabel()
+                                        + " · "
+                                        + timerPresentation.fadeLabel()
+                                : "选择声音与时长后开始播放",
+                        12,
+                        active ? Ui.WARM : Ui.MUTED,
+                        Ui.medium());
+        remaining.setPadding(0, Ui.dp(this, 4), 0, 0);
+        status.addView(remaining);
+
+        LinearLayout playbackActions = new LinearLayout(this);
+        playbackActions.setOrientation(LinearLayout.HORIZONTAL);
+        playbackActions.setPadding(0, Ui.dp(this, 14), 0, 0);
+        Button primary =
+                Ui.button(
+                        this,
+                        active
+                                ? ("paused".equals(session.state()) ? "继续播放" : "暂停")
+                                : "播放",
+                        true);
+        playbackActions.addView(
+                primary,
+                new LinearLayout.LayoutParams(0, Ui.dp(this, 52), active ? 1.15f : 1f));
+        if (active) {
+            Button stop = Ui.button(this, "停止", false);
+            LinearLayout.LayoutParams stopParams =
+                    new LinearLayout.LayoutParams(0, Ui.dp(this, 52), .85f);
+            stopParams.leftMargin = Ui.dp(this, 10);
+            playbackActions.addView(stop, stopParams);
+            stop.setOnClickListener(
+                    v ->
+                            startService(
+                                    new Intent(this, WhiteNoiseService.class)
+                                            .setAction(WhiteNoiseService.ACTION_STOP)));
+        }
+        status.addView(playbackActions);
+        root.addView(status);
+
         Spinner timer =
                 Ui.spinner(
                         this,
                         new String[] {"持续播放（最长 8 小时）", "15 分钟", "30 分钟", "45 分钟", "60 分钟"});
         timer.setSelection(
                 indexOf(new int[] {0, 15, 30, 45, 60}, preferences.noiseTimerMinutes()));
-        addField(controls, "定时", timer);
         Spinner fade = Ui.spinner(this, new String[] {"直接结束", "5 秒渐隐", "15 秒渐隐", "30 秒渐隐"});
         fade.setSelection(indexOf(new int[] {0, 5, 15, 30}, preferences.noiseFadeSeconds()));
-        addField(controls, "结束方式", fade);
-        TextView volume =
-                Ui.text(
-                        this,
-                        "音量完全跟随手机媒体音量；实体音量键可以随时调整。",
-                        13,
-                        Ui.PAPER,
-                        Typeface.DEFAULT);
-        volume.setPadding(0, Ui.dp(this, 14), 0, 0);
-        controls.addView(volume);
-        root.addView(controls);
+        if (timerPresentation.showNextSessionSettings()) {
+            root.addView(Ui.space(this, 14));
+            LinearLayout controls = Ui.card(this, Ui.PANEL);
+            controls.addView(Ui.text(this, "本次播放", 18, Ui.PAPER, Ui.medium()));
+            addField(controls, "播放时长", timer);
+            addField(controls, "结束方式", fade);
+            root.addView(controls);
+        } else {
+            scheduleNoiseTimer(remaining, session);
+        }
 
-        boolean active =
-                !"stopped".equals(session.state()) && !"blocked".equals(session.state());
-        Button primary =
-                Ui.button(
-                        this,
-                        active ? ("paused".equals(session.state()) ? "继续播放" : "暂停") : "开始播放",
-                        true);
-        Ui.marginTop(primary, 16);
         primary.setOnClickListener(
                 v -> {
                     if (active) {
@@ -440,9 +514,7 @@ public final class HomeActivity extends Activity {
                                                         : WhiteNoiseService.ACTION_PAUSE));
                         return;
                     }
-                    String soundId =
-                            new String[] {"rain", "stream", "fireplace"}[
-                                    sound.getSelectedItemPosition()];
+                    String soundId = selectedSoundId;
                     int timerMinutes =
                             new int[] {0, 15, 30, 45, 60}[timer.getSelectedItemPosition()];
                     int fadeSeconds =
@@ -456,17 +528,6 @@ public final class HomeActivity extends Activity {
                                     .putExtra(WhiteNoiseService.EXTRA_FADE_SECONDS, fadeSeconds);
                     startForegroundService(play);
                 });
-        root.addView(primary);
-        if (active) {
-            Button stop = Ui.button(this, "停止播放", false);
-            Ui.marginTop(stop, 10);
-            stop.setOnClickListener(
-                    v ->
-                            startService(
-                                    new Intent(this, WhiteNoiseService.class)
-                                            .setAction(WhiteNoiseService.ACTION_STOP)));
-            root.addView(stop);
-        }
         TextView credit =
                 Ui.text(
                         this,
@@ -478,6 +539,70 @@ public final class HomeActivity extends Activity {
         credit.setPadding(0, Ui.dp(this, 18), 0, 0);
         root.addView(credit);
         return scroll;
+    }
+
+    private LinearLayout soundChoice(SleepSoundCatalog.Item item, boolean selected) {
+        LinearLayout choice = new LinearLayout(this);
+        choice.setOrientation(LinearLayout.VERTICAL);
+        choice.setGravity(Gravity.CENTER);
+        choice.setPadding(Ui.dp(this, 12), Ui.dp(this, 14), Ui.dp(this, 12), Ui.dp(this, 14));
+        choice.setBackground(Ui.round(this, selected ? Ui.ACID : Ui.PANEL, 24, selected ? Ui.ACID : Ui.LINE));
+        choice.addView(Ui.text(this, item.symbol(), 27, selected ? Ui.INK : Ui.WARM, Ui.display()));
+        TextView label = Ui.text(this, item.shortLabel(), 14, selected ? Ui.INK : Ui.PAPER, Ui.medium());
+        label.setPadding(0, Ui.dp(this, 8), 0, 0);
+        choice.addView(label);
+        TextView note = Ui.text(this, item.note(), 10, selected ? Ui.INK : Ui.MUTED, Typeface.DEFAULT);
+        note.setPadding(0, Ui.dp(this, 2), 0, 0);
+        choice.addView(note);
+        return choice;
+    }
+
+    private void scheduleNoiseTimer(
+            TextView remaining, NoiseSessionStore.Snapshot session) {
+        Runnable ticker =
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        if (!SCREEN_NOISE.equals(currentScreen) || !remaining.isAttachedToWindow()) return;
+                        NoiseTimerPresentation.ViewState state =
+                                NoiseTimerPresentation.resolve(
+                                        session.state(),
+                                        session.endsAtEpochMs(),
+                                        System.currentTimeMillis(),
+                                        preferences.noiseTimerMinutes(),
+                                        session.fadeSeconds());
+                        remaining.setText(state.remainingLabel() + " · " + state.fadeLabel());
+                        noiseTimerHandler.postDelayed(this, 15_000L);
+                    }
+                };
+        noiseTimerHandler.postDelayed(ticker, 15_000L);
+    }
+
+    private void selectSleepSound(
+            String soundId, NoiseSessionStore.Snapshot session, boolean active) {
+        String currentSoundId =
+                active
+                        ? SleepSoundCatalog.normalizeId(session.soundId())
+                        : SleepSoundCatalog.normalizeId(preferences.noiseSoundId());
+        if (soundId.equals(currentSoundId)) return;
+        preferences.saveNoiseDefaults(
+                preferences.noiseTimerMinutes(), preferences.noiseFadeSeconds(), soundId);
+        if (active) {
+            startService(
+                    new Intent(this, WhiteNoiseService.class)
+                            .setAction(WhiteNoiseService.ACTION_SWITCH_SOUND)
+                            .putExtra(WhiteNoiseService.EXTRA_SOUND_ID, soundId));
+        } else {
+            new NoiseSessionStore(this)
+                    .save(
+                            new NoiseSessionStore.Snapshot(
+                                    "stopped",
+                                    SleepSoundCatalog.normalizeId(soundId),
+                                    0L,
+                                    preferences.noiseFadeSeconds(),
+                                    "尚未播放"));
+            showScreen(SCREEN_NOISE);
+        }
     }
 
     private View outputBanner(ReadinessChecker.Status status) {
@@ -509,12 +634,12 @@ public final class HomeActivity extends Activity {
             action = () -> startActivity(new Intent(this, MainActivity.class));
             actionLabel = "确认耳机";
         } else if (status.headsetConnected()) {
-            title = "耳机已连接 · 将只通过耳机播放";
-            detail = "播放中断连会立即静音并停止。";
+            title = "耳机播放";
+            detail = "已连接耳机 · 断连会立即静音";
             accent = Ui.ACID;
         } else {
-            title = "当前无耳机 · 将通过扬声器播放";
-            detail = "音量跟随手机媒体音量。";
+            title = "扬声器播放";
+            detail = "当前无耳机 · 跟随媒体音量";
             accent = Ui.WARM;
             action = () -> startActivity(new Intent(Settings.ACTION_SOUND_SETTINGS));
             actionLabel = "调整音量";
@@ -553,20 +678,21 @@ public final class HomeActivity extends Activity {
     private View infoBanner(
             String title, String detail, int accent, String actionLabel, Runnable action) {
         LinearLayout card = Ui.card(this, Ui.PANEL);
+        card.setPadding(Ui.dp(this, 14), Ui.dp(this, 12), Ui.dp(this, 14), Ui.dp(this, 12));
         LinearLayout row = new LinearLayout(this);
         row.setGravity(Gravity.CENTER_VERTICAL);
         TextView mark = Ui.text(this, "●", 14, accent, Typeface.DEFAULT_BOLD);
         row.addView(mark, new LinearLayout.LayoutParams(Ui.dp(this, 28), -2));
         LinearLayout copy = new LinearLayout(this);
         copy.setOrientation(LinearLayout.VERTICAL);
-        copy.addView(Ui.text(this, title, 16, Ui.PAPER, Typeface.DEFAULT_BOLD));
+        copy.addView(Ui.text(this, title, 14, Ui.PAPER, Ui.medium()));
         TextView description = Ui.text(this, detail, 12, Ui.MUTED, Typeface.DEFAULT);
         description.setPadding(0, Ui.dp(this, 3), 0, 0);
         copy.addView(description);
         row.addView(copy, new LinearLayout.LayoutParams(0, -2, 1));
         if (action != null) {
             TextView button = Ui.text(this, actionLabel, 13, Ui.ACID, Typeface.DEFAULT_BOLD);
-            button.setPadding(Ui.dp(this, 12), Ui.dp(this, 11), 0, Ui.dp(this, 11));
+            button.setPadding(Ui.dp(this, 12), Ui.dp(this, 8), 0, Ui.dp(this, 8));
             row.addView(button);
             card.setOnClickListener(v -> action.run());
         }
@@ -637,7 +763,7 @@ public final class HomeActivity extends Activity {
 
     private TextView hero(String value, int size) {
         TextView hero =
-                Ui.text(this, value, size, Ui.PAPER, Typeface.create("serif", Typeface.BOLD));
+                Ui.text(this, value, size, Ui.PAPER, Ui.display());
         hero.setPadding(0, Ui.dp(this, 10), 0, Ui.dp(this, 22));
         return hero;
     }

@@ -18,6 +18,7 @@ public final class WhiteNoiseService extends Service
     public static final String ACTION_START = "com.hushwake.app.action.NOISE_START";
     public static final String ACTION_PAUSE = "com.hushwake.app.action.NOISE_PAUSE";
     public static final String ACTION_RESUME = "com.hushwake.app.action.NOISE_RESUME";
+    public static final String ACTION_SWITCH_SOUND = "com.hushwake.app.action.NOISE_SWITCH_SOUND";
     public static final String ACTION_STOP = "com.hushwake.app.action.NOISE_STOP";
     public static final String ACTION_STATE = "com.hushwake.app.action.NOISE_STATE";
     public static final String EXTRA_SOUND_ID = "sound_id";
@@ -60,10 +61,13 @@ public final class WhiteNoiseService extends Service
             resume();
             return START_NOT_STICKY;
         }
+        if (ACTION_SWITCH_SOUND.equals(action)) {
+            switchSound(intent.getStringExtra(EXTRA_SOUND_ID));
+            return START_NOT_STICKY;
+        }
         if (!ACTION_START.equals(action)) return START_NOT_STICKY;
 
-        soundId = intent.getStringExtra(EXTRA_SOUND_ID);
-        if (soundId == null || soundId.isBlank()) soundId = "rain";
+        soundId = SleepSoundCatalog.normalizeId(intent.getStringExtra(EXTRA_SOUND_ID));
         fadeSeconds = clamp(intent.getIntExtra(EXTRA_FADE_SECONDS, 15), 0, 30);
         int timerMinutes = clamp(intent.getIntExtra(EXTRA_TIMER_MINUTES, 30), 0, 480);
         long requested = timerMinutes == 0 ? MAX_SESSION_MS : timerMinutes * 60_000L;
@@ -140,6 +144,21 @@ public final class WhiteNoiseService extends Service
         detail = "正在重新选择智能输出";
         scheduleEnd();
         startEngine();
+    }
+
+    private void switchSound(String requestedSoundId) {
+        if (stopping || endsAtEpochMs <= 0L) return;
+        SleepSoundSwitchPolicy.Decision decision =
+                SleepSoundSwitchPolicy.decide(
+                        soundId, requestedSoundId, paused, endsAtEpochMs, fadeSeconds);
+        if (!decision.changed()) return;
+        soundId = decision.soundId();
+        detail = paused ? "已切换为" + soundLabel(soundId) + "；继续后播放" : "正在切换为" + soundLabel(soundId);
+        store.save(snapshot(paused ? "paused" : "switching", detail));
+        getSystemService(android.app.NotificationManager.class)
+                .notify(NOTIFICATION_ID, notification(detail));
+        broadcast();
+        if (decision.restartPlaybackNow()) startEngine();
     }
 
     private void scheduleEnd() {

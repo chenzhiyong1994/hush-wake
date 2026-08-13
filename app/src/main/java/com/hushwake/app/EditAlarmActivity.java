@@ -7,28 +7,34 @@ import android.content.Intent;
 import android.graphics.Typeface;
 import android.media.AudioManager;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
-import android.widget.CheckBox;
 import android.widget.EditText;
+import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
-import android.widget.Spinner;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
+import com.hushwake.app.alarm.AlarmPreviewSelection;
 import com.hushwake.app.alarm.AlarmRingingService;
 import com.hushwake.app.alarm.AlarmScheduler;
 import com.hushwake.app.alarm.AlarmSessionStore;
+import com.hushwake.app.alarm.AlarmSoundCatalog;
 import com.hushwake.app.alarm.AlarmStopPolicy;
 import com.hushwake.app.alarm.UnifiedAlarmPolicy;
+import com.hushwake.app.audio.PrivatePlaybackEngine;
 import com.hushwake.app.data.AlarmRepository;
 import com.hushwake.app.data.AppPreferences;
 import com.hushwake.app.domain.Alarm;
 import com.hushwake.app.ui.Ui;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
 
 public final class EditAlarmActivity extends Activity {
     public static final String EXTRA_ALARM_ID = "edit_alarm_id";
@@ -39,8 +45,12 @@ public final class EditAlarmActivity extends Activity {
     private int minute;
     private Button timeButton;
     private EditText label;
-    private final CheckBox[] weekdayChecks = new CheckBox[7];
-    private Spinner sound;
+    private final TextView[] weekdayChoices = new TextView[7];
+    private int repeatMask;
+    private final List<TextView> soundChoices = new ArrayList<>();
+    private String selectedSoundId = "soft_chime";
+    private final Handler previewHandler = new Handler(Looper.getMainLooper());
+    private PrivatePlaybackEngine previewEngine;
     private Switch enabled;
 
     @Override
@@ -70,20 +80,21 @@ public final class EditAlarmActivity extends Activity {
         back.setPadding(0, Ui.dp(this, 6), 0, Ui.dp(this, 20));
         back.setOnClickListener(v -> finish());
         root.addView(back);
-        root.addView(Ui.eyebrow(this, existing == null ? "NEW ALARM" : "EDIT ALARM"));
+        root.addView(Ui.eyebrow(this, existing == null ? "新闹钟" : "编辑闹钟"));
         TextView title =
                 Ui.text(
                         this,
                         existing == null ? "几点叫醒你？" : "调整这次提醒",
                         34,
                         Ui.PAPER,
-                        Typeface.create("serif", Typeface.BOLD));
+                        Ui.display());
         title.setPadding(0, Ui.dp(this, 10), 0, Ui.dp(this, 22));
         root.addView(title);
 
         timeButton = Ui.button(this, "00:00", false);
-        timeButton.setTextSize(42);
-        timeButton.setTypeface(Typeface.create("serif", Typeface.BOLD));
+        timeButton.setTextSize(48);
+        timeButton.setTypeface(Ui.display());
+        timeButton.setMinHeight(Ui.dp(this, 112));
         timeButton.setOnClickListener(
                 v ->
                         new TimePickerDialog(
@@ -101,7 +112,7 @@ public final class EditAlarmActivity extends Activity {
         root.addView(Ui.space(this, 14));
 
         LinearLayout schedule = Ui.card(this, Ui.PANEL);
-        schedule.addView(Ui.eyebrow(this, "SCHEDULE  /  时间"));
+        schedule.addView(sectionTitle("时间与重复", "选择日期规则，留空就是仅响一次。"));
         label = new EditText(this);
         label.setHint("标签（可选）");
         label.setHintTextColor(Ui.MUTED);
@@ -112,23 +123,20 @@ public final class EditAlarmActivity extends Activity {
         label.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Ui.LINE));
         label.setPadding(0, Ui.dp(this, 14), 0, Ui.dp(this, 10));
         schedule.addView(label);
-        TextView repeatLabel = Ui.text(this, "重复", 12, Ui.MUTED, Typeface.DEFAULT_BOLD);
+        TextView repeatLabel = Ui.text(this, "重复", 12, Ui.MUTED, Ui.medium());
         repeatLabel.setPadding(0, Ui.dp(this, 16), 0, Ui.dp(this, 7));
         schedule.addView(repeatLabel);
         LinearLayout days = new LinearLayout(this);
         days.setOrientation(LinearLayout.HORIZONTAL);
         String[] labels = {"一", "二", "三", "四", "五", "六", "日"};
         for (int i = 0; i < labels.length; i++) {
-            CheckBox check = new CheckBox(this);
-            check.setText(labels[i]);
-            check.setTextColor(Ui.PAPER);
-            check.setGravity(Gravity.CENTER);
-            check.setButtonTintList(
-                    new android.content.res.ColorStateList(
-                            new int[][] {new int[] {android.R.attr.state_checked}, new int[] {}},
-                            new int[] {Ui.ACID, Ui.MUTED}));
-            days.addView(check, new LinearLayout.LayoutParams(0, -2, 1));
-            weekdayChecks[i] = check;
+            TextView choice = Ui.choice(this, labels[i], false);
+            int dayIndex = i;
+            choice.setOnClickListener(v -> toggleWeekday(dayIndex));
+            LinearLayout.LayoutParams dayParams = new LinearLayout.LayoutParams(0, -2, 1);
+            if (i > 0) dayParams.leftMargin = Ui.dp(this, 5);
+            days.addView(choice, dayParams);
+            weekdayChoices[i] = choice;
         }
         schedule.addView(days);
         enabled = new Switch(this);
@@ -141,14 +149,32 @@ public final class EditAlarmActivity extends Activity {
         root.addView(schedule);
         root.addView(Ui.space(this, 14));
 
-        LinearLayout soundCard = Ui.card(this, Ui.RAISED);
-        soundCard.addView(Ui.eyebrow(this, "SOUND  /  铃声"));
-        sound = Ui.spinner(this, new String[] {"柔和钟声", "清亮钟声", "地平线"});
-        addField(soundCard, "选择铃声", sound);
+        LinearLayout soundCard = Ui.card(this, Ui.PANEL);
+        soundCard.addView(sectionTitle("铃声库", "左右滑动浏览真实录音；点选试听，再点一次重播。"));
+        HorizontalScrollView soundStrip = new HorizontalScrollView(this);
+        soundStrip.setHorizontalScrollBarEnabled(false);
+        soundStrip.setClipToPadding(false);
+        LinearLayout sounds = new LinearLayout(this);
+        sounds.setOrientation(LinearLayout.HORIZONTAL);
+        List<AlarmSoundCatalog.Item> alarmSounds = AlarmSoundCatalog.all();
+        for (int i = 0; i < alarmSounds.size(); i++) {
+            AlarmSoundCatalog.Item item = alarmSounds.get(i);
+            TextView choice = alarmSoundChoice(item, false);
+            String soundId = item.id();
+            choice.setOnClickListener(v -> selectSound(soundId, true));
+            LinearLayout.LayoutParams choiceParams =
+                    new LinearLayout.LayoutParams(Ui.dp(this, 132), Ui.dp(this, 104));
+            if (i > 0) choiceParams.leftMargin = Ui.dp(this, 8);
+            sounds.addView(choice, choiceParams);
+            soundChoices.add(choice);
+        }
+        sounds.setPadding(0, Ui.dp(this, 14), 0, 0);
+        soundStrip.addView(sounds, new HorizontalScrollView.LayoutParams(-2, -1));
+        soundCard.addView(soundStrip, new LinearLayout.LayoutParams(-1, Ui.dp(this, 118)));
         TextView media =
                 Ui.text(
                         this,
-                        "响铃音量跟随手机媒体音量。无耳机时从扬声器播放；连接耳机时只通过耳机播放。",
+                        "试听和正式响铃都跟随手机媒体音量。",
                         13,
                         Ui.PAPER,
                         Typeface.DEFAULT);
@@ -179,8 +205,9 @@ public final class EditAlarmActivity extends Activity {
         updateTime();
         Alarm source = alarm == null ? Alarm.newDefault(hour, minute, System.currentTimeMillis()) : alarm;
         label.setText(source.label());
-        for (int i = 0; i < 7; i++) weekdayChecks[i].setChecked(source.repeatsOn(i + 1));
-        sound.setSelection(soundIndex(source.soundId()));
+        repeatMask = source.repeatMask();
+        updateWeekdayChoices();
+        selectSound(source.soundId(), false);
         enabled.setChecked(source.enabled());
     }
 
@@ -189,10 +216,6 @@ public final class EditAlarmActivity extends Activity {
         if (alarmLabel.codePointCount(0, alarmLabel.length()) > 30) {
             label.setError("标签最多 30 个字符");
             return;
-        }
-        int repeatMask = 0;
-        for (int i = 0; i < 7; i++) {
-            if (weekdayChecks[i].isChecked()) repeatMask |= Alarm.weekdayBit(i + 1);
         }
         long now = System.currentTimeMillis();
         long id = existing == null ? 0L : existing.id();
@@ -208,8 +231,7 @@ public final class EditAlarmActivity extends Activity {
                         minute,
                         repeatMask,
                         alarmLabel,
-                        new String[] {"soft_chime", "bright_chime", "horizon"}[
-                                sound.getSelectedItemPosition()],
+                        selectedSoundId,
                         UnifiedAlarmPolicy.APP_GAIN_PERCENT,
                         UnifiedAlarmPolicy.FADE_IN_SECONDS,
                         UnifiedAlarmPolicy.VIBRATE_WHEN_BLOCKED,
@@ -262,19 +284,106 @@ public final class EditAlarmActivity extends Activity {
                         .putExtra(AlarmRingingService.EXTRA_STOP_ALARM_ID, alarmId));
     }
 
-    private void addField(LinearLayout parent, String title, View input) {
-        TextView fieldLabel = Ui.text(this, title, 12, Ui.MUTED, Typeface.DEFAULT_BOLD);
-        fieldLabel.setPadding(0, Ui.dp(this, 14), 0, Ui.dp(this, 4));
-        parent.addView(fieldLabel);
-        parent.addView(input, new LinearLayout.LayoutParams(-1, -2));
+    private View sectionTitle(String title, String detail) {
+        LinearLayout copy = new LinearLayout(this);
+        copy.setOrientation(LinearLayout.VERTICAL);
+        copy.addView(Ui.text(this, title, 19, Ui.PAPER, Ui.medium()));
+        TextView description = Ui.text(this, detail, 12, Ui.MUTED, Typeface.DEFAULT);
+        description.setPadding(0, Ui.dp(this, 3), 0, 0);
+        copy.addView(description);
+        return copy;
     }
 
     private void updateTime() {
         timeButton.setText(String.format(java.util.Locale.ROOT, "%02d:%02d", hour, minute));
     }
 
-    private int soundIndex(String id) {
-        return "bright_chime".equals(id) ? 1 : "horizon".equals(id) ? 2 : 0;
+    private void selectSound(String soundId, boolean userInitiated) {
+        AlarmPreviewSelection.Decision decision =
+                AlarmPreviewSelection.select(selectedSoundId, soundId, userInitiated);
+        selectedSoundId = decision.soundId();
+        List<AlarmSoundCatalog.Item> items = AlarmSoundCatalog.all();
+        for (int i = 0; i < items.size(); i++) {
+            setAlarmSoundChoiceSelected(
+                    soundChoices.get(i), items.get(i), items.get(i).id().equals(selectedSoundId));
+        }
+        if (decision.previewNow()) startPreview();
+    }
+
+    private TextView alarmSoundChoice(AlarmSoundCatalog.Item item, boolean selected) {
+        TextView choice =
+                Ui.text(
+                        this,
+                        item.symbol() + "\n" + item.label() + "\n" + item.note(),
+                        13,
+                        selected ? Ui.INK : Ui.PAPER,
+                        Ui.medium());
+        choice.setGravity(Gravity.CENTER);
+        choice.setLineSpacing(Ui.dp(this, 2), 1f);
+        choice.setPadding(Ui.dp(this, 8), Ui.dp(this, 10), Ui.dp(this, 8), Ui.dp(this, 10));
+        choice.setBackground(
+                Ui.round(
+                        this,
+                        selected ? Ui.ACID : Ui.RAISED,
+                        20,
+                        selected ? Ui.ACID : Ui.LINE));
+        return choice;
+    }
+
+    private void setAlarmSoundChoiceSelected(
+            TextView choice, AlarmSoundCatalog.Item item, boolean selected) {
+        choice.setText(item.symbol() + "\n" + item.label() + "\n" + item.note());
+        choice.setTextColor(selected ? Ui.INK : Ui.PAPER);
+        choice.setBackground(
+                Ui.round(
+                        this,
+                        selected ? Ui.ACID : Ui.RAISED,
+                        20,
+                        selected ? Ui.ACID : Ui.LINE));
+    }
+
+    private void toggleWeekday(int index) {
+        repeatMask ^= Alarm.weekdayBit(index + 1);
+        updateWeekdayChoices();
+    }
+
+    private void updateWeekdayChoices() {
+        for (int i = 0; i < weekdayChoices.length; i++) {
+            Ui.setChoiceSelected(
+                    weekdayChoices[i], (repeatMask & Alarm.weekdayBit(i + 1)) != 0);
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        stopPreview();
+    }
+
+    private void startPreview() {
+        stopPreview();
+        previewEngine =
+                new PrivatePlaybackEngine(
+                        this,
+                        new PrivatePlaybackEngine.Config(
+                                PrivatePlaybackEngine.Purpose.ALARM,
+                                selectedSoundId,
+                                35,
+                                0),
+                        (state, detail, verification, muteLatencyMs) -> {
+                            if (state == PrivatePlaybackEngine.State.BLOCKED) {
+                                Toast.makeText(this, detail, Toast.LENGTH_SHORT).show();
+                            }
+                        });
+        previewEngine.start();
+        previewHandler.postDelayed(this::stopPreview, 5_000L);
+    }
+
+    private void stopPreview() {
+        previewHandler.removeCallbacksAndMessages(null);
+        PrivatePlaybackEngine current = previewEngine;
+        previewEngine = null;
+        if (current != null) current.release();
     }
 
     private void configureWindow() {
