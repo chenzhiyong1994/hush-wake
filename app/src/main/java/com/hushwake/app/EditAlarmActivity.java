@@ -139,7 +139,7 @@ public final class EditAlarmActivity extends Activity {
         root.addView(Ui.space(this, 14));
 
         LinearLayout audio = Ui.card(this, Ui.PANEL);
-        audio.addView(Ui.eyebrow(this, "PRIVATE AUDIO  /  仅耳机"));
+        audio.addView(Ui.eyebrow(this, "SMART AUDIO  /  智能输出"));
         sound = spinner(new String[] {"柔和钟声", "清亮钟声", "地平线"});
         addField(audio, "铃声", sound);
         volumeLabel = Ui.text(this, "应用内增益 · 50%", 13, Ui.PAPER, Typeface.DEFAULT_BOLD);
@@ -163,7 +163,7 @@ public final class EditAlarmActivity extends Activity {
         TextView guard =
                 Ui.text(
                         this,
-                        "保存的音量不会绕过输出守卫，也不会修改系统媒体音量。当前耳机未验证时，本次仍保持静音。",
+                        "无耳机时使用系统媒体外放；有耳机时必须通过耳机路由守卫。保存的音量不会修改系统媒体音量。",
                         12,
                         Ui.MUTED,
                         Typeface.DEFAULT);
@@ -245,7 +245,7 @@ public final class EditAlarmActivity extends Activity {
         if (vibration.isChecked() && !preferences.vibrationWarningAcknowledged()) {
             new AlertDialog.Builder(this)
                     .setTitle("振动也可能打扰附近的人")
-                    .setMessage("当声音因耳机不可用而被阻断时，手机会按此设置振动。你可以现在关闭，也可以确认继续使用。")
+                    .setMessage("当声音因权限、耳机路由或其他播放问题被阻断时，手机会按此设置振动。你可以现在关闭，也可以确认继续使用。")
                     .setPositiveButton(
                             "确认开启",
                             (d, w) -> {

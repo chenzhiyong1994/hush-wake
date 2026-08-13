@@ -79,7 +79,7 @@ public final class WhiteNoiseService extends Service
         completed = false;
         discardWithoutHistory = false;
         paused = false;
-        startForeground(NOTIFICATION_ID, notification("正在验证耳机输出"));
+        startForeground(NOTIFICATION_ID, notification("正在选择智能输出"));
         scheduleEnd();
         startEngine();
         return START_NOT_STICKY;
@@ -147,7 +147,7 @@ public final class WhiteNoiseService extends Service
     private void resume() {
         if (!paused || stopping) return;
         paused = false;
-        detail = "正在重新验证耳机输出";
+        detail = "正在重新选择智能输出";
         scheduleEnd();
         startEngine();
     }

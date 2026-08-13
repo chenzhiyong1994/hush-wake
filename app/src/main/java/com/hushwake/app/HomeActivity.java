@@ -89,7 +89,7 @@ public final class HomeActivity extends Activity {
         new AlarmScheduler(this).reconcileOnAppOpen();
         configureWindow();
         setContentView(buildShell());
-        if (!preferences.privacyPrincipleAcknowledged()) {
+        if (!preferences.outputPolicyAcknowledged()) {
             showOnboarding();
         } else {
             String requested = getIntent().getStringExtra(EXTRA_SCREEN);
@@ -100,7 +100,7 @@ public final class HomeActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (preferences.privacyPrincipleAcknowledged()) showScreen(currentScreen);
+        if (preferences.outputPolicyAcknowledged()) showScreen(currentScreen);
         if (!noiseReceiverRegistered) {
             registerNoiseReceiver();
             noiseReceiverRegistered = true;
@@ -185,26 +185,26 @@ public final class HomeActivity extends Activity {
         ScrollView scroll = scroll();
         LinearLayout root = pageRoot(scroll);
         root.addView(Ui.eyebrow(this, "HUSHWAKE  /  悄醒"));
-        TextView title = hero("声音只在\n耳边响起。", 43);
+        TextView title = hero("声音，去往\n正确的地方。", 43);
         title.setLineSpacing(0, .92f);
         root.addView(title);
         TextView intro =
                 Ui.text(
                         this,
-                        "共享空间里的私密闹钟与环境音。它把不外放放在第一位：无法验证当前耳机输出时，宁可没有声音，也不会自动切到扬声器。",
+                        "悄醒默认使用智能输出：没有耳机时正常使用手机媒体外放；检测到耳机时，只在通过验证的耳机路径播放。",
                         16,
                         Ui.MUTED,
                         Typeface.DEFAULT);
         intro.setPadding(0, Ui.dp(this, 14), 0, Ui.dp(this, 26));
         root.addView(intro);
-        root.addView(principleCard("01", "先静音，再验证", "播放器从零采样、零增益开始；本次实际路由通过后才会渐强。"));
+        root.addView(principleCard("01", "无耳机，正常外放", "闹钟和白噪音都可以使用手机的系统媒体输出。"));
         root.addView(Ui.space(this, 12));
-        root.addView(principleCard("02", "无耳机，不外放", "断连或路由不确定时第一动作是应用增益归零，再停止并按设置振动。"));
+        root.addView(principleCard("02", "有耳机，严格守卫", "先静音验证实际耳机路由；耳机播放中断连不会突然切回扬声器。"));
         root.addView(Ui.space(this, 12));
         root.addView(principleCard("03", "所有数据留在本机", "没有账号、云同步或诊断上传；耳机只保存不可逆的本机哈希。"));
         root.addView(Ui.space(this, 22));
         CheckBox acknowledge = new CheckBox(this);
-        acknowledge.setText("我理解：无耳机或无法验证时，闹钟不会发出声音");
+        acknowledge.setText("我理解：无耳机时会正常外放；检测到耳机时只允许耳机播放");
         acknowledge.setTextColor(Ui.PAPER);
         acknowledge.setTextSize(14);
         acknowledge.setButtonTintList(
@@ -222,7 +222,7 @@ public final class HomeActivity extends Activity {
                 });
         continueButton.setOnClickListener(
                 v -> {
-                    preferences.setPrivacyPrincipleAcknowledged(true);
+                    preferences.acknowledgeOutputPolicy();
                     navigation.setVisibility(View.VISIBLE);
                     showScreen(SCREEN_RELIABILITY);
                 });
@@ -272,7 +272,7 @@ public final class HomeActivity extends Activity {
             empty.addView(
                     Ui.text(
                             this,
-                            "可先保存为有风险状态；只有精确调度和当前耳机隐私条件都满足时，列表才显示已就绪。",
+                            "可先保存为有风险状态；无耳机时使用智能外放，有耳机时需通过当前耳机隐私测试。",
                             13,
                             Ui.MUTED,
                             Typeface.DEFAULT));
@@ -332,9 +332,9 @@ public final class HomeActivity extends Activity {
         int color;
         if (!alarm.enabled()) { state = "已停用"; color = Ui.MUTED; }
         else if (!scheduled) { state = "有风险 · 未精确调度"; color = Ui.WARM; }
-        else if (!readiness.readyForSound()) { state = "有风险 · 到点可能仅振动/通知"; color = Ui.WARM; }
+        else if (!readiness.readyForSound()) { state = "有风险 · 输出条件待处理"; color = Ui.WARM; }
         else if (!readiness.fullScreen()) { state = "有风险 · 锁屏入口受限"; color = Ui.WARM; }
-        else { state = "已就绪 · 当前耳机验证有效"; color = Ui.ACID; }
+        else { state = readiness.headsetConnected() ? "已就绪 · 当前耳机验证有效" : "已就绪 · 智能外放"; color = Ui.ACID; }
         card.addView(Ui.text(this, state, 12, color, Typeface.DEFAULT_BOLD));
         if (alarm.enabled()) {
             Instant next = AlarmTimeCalculator.next(alarm, Instant.now(), ZoneId.systemDefault());
@@ -385,7 +385,7 @@ public final class HomeActivity extends Activity {
         root.addView(Ui.space(this, 14));
 
         LinearLayout controls = Ui.card(this, Ui.PANEL);
-        controls.addView(Ui.eyebrow(this, "SESSION  /  耳机守卫"));
+        controls.addView(Ui.eyebrow(this, "SESSION  /  智能输出"));
         Spinner sound = spinner(new String[] {"细雨", "粉红噪音", "远海", "篝火"});
         sound.setSelection(indexOf(new String[] {"rain", "pink", "ocean", "campfire"}, preferences.noiseSoundId()));
         addField(controls, "声音", sound);
@@ -413,7 +413,7 @@ public final class HomeActivity extends Activity {
         TextView privacy =
                 Ui.text(
                         this,
-                        "白噪音与闹钟使用同一耳机隐私守卫。当前耳机未验证、断开或实际路由不确定时，声音会被阻断，不会切到扬声器。",
+                        "无耳机时使用手机媒体外放；检测到耳机时切换到耳机守卫。耳机播放中断连会先静音并停止，不会突然改为外放。",
                         12,
                         Ui.MUTED,
                         Typeface.DEFAULT);
@@ -477,9 +477,20 @@ public final class HomeActivity extends Activity {
         root.addView(Ui.space(this, 10));
         root.addView(statusCard("媒体音量", status.mediaVolume(), status.mediaVolume() ? "可用；应用不会自动调高" : "当前为 0，本次有声不可用", () -> startActivity(new Intent(Settings.ACTION_SOUND_SETTINGS))));
         root.addView(Ui.space(this, 10));
-        root.addView(statusCard("当前输出", !status.output().startsWith("未连接"), status.output(), null));
+        root.addView(statusCard("当前输出", status.outputSelectable(), status.output(), null));
         root.addView(Ui.space(this, 10));
-        root.addView(statusCard("当前耳机隐私测试", status.deviceVerified(), status.deviceVerified() ? "已通过 · 90 天内且环境未变化" : "未通过、已过期或无法识别当前耳机", () -> startActivity(new Intent(this, MainActivity.class))));
+        root.addView(
+                statusCard(
+                        "当前耳机隐私测试",
+                        !status.headsetConnected() || status.deviceVerified(),
+                        !status.headsetConnected()
+                                ? "当前无耳机 · 智能外放无需耳机测试"
+                                : status.deviceVerified()
+                                        ? "已通过 · 90 天内且环境未变化"
+                                        : "未通过、已过期或无法识别当前耳机",
+                        status.headsetConnected()
+                                ? () -> startActivity(new Intent(this, MainActivity.class))
+                                : null));
         root.addView(Ui.space(this, 10));
         root.addView(statusCard("1 分钟测试闹钟", status.testAlarmPassed(), status.testAlarmPassed() ? "已至少完成一次实际系统触发" : "尚未完成", this::createTestAlarm));
         if (!status.scheduleIssue().isBlank()) {
@@ -554,7 +565,7 @@ public final class HomeActivity extends Activity {
         boundaries.addView(
                 Ui.text(
                         this,
-                        "关机、无电、卸载、应用被强制停止或系统/厂商后台策略阻止时，悄醒无法保证触发。应用不会绕过 Android 权限，也不会用扬声器补偿失败。",
+                        "关机、无电、卸载、应用被强制停止或系统/厂商后台策略阻止时，悄醒无法保证触发。耳机播放中的断连不会自动降级为扬声器外放。",
                         13,
                         Ui.MUTED,
                         Typeface.DEFAULT));
@@ -576,7 +587,7 @@ public final class HomeActivity extends Activity {
         data.addView(clearAll);
         root.addView(data);
         root.addView(Ui.space(this, 18));
-        TextView version = Ui.text(this, "HushWake 0.2.0-beta · Android API 31+", 12, Ui.MUTED, Typeface.MONOSPACE);
+        TextView version = Ui.text(this, "HushWake 0.2.1-beta · Android API 31+", 12, Ui.MUTED, Typeface.MONOSPACE);
         version.setGravity(Gravity.CENTER);
         root.addView(version);
         return scroll;
@@ -834,7 +845,8 @@ public final class HomeActivity extends Activity {
         if (!status.fullScreen()) return "全屏闹钟入口未允许";
         if (!status.bluetoothPermission()) return "蓝牙连接能力未允许";
         if (!status.mediaVolume()) return "系统媒体音量为 0";
-        if (!status.deviceVerified()) return "当前耳机需要隐私测试";
+        if (!status.outputSelectable()) return "检测到多个耳机，无法唯一选择输出";
+        if (status.headsetConnected() && !status.deviceVerified()) return "当前耳机需要隐私测试";
         return "请打开可靠性中心检查";
     }
 

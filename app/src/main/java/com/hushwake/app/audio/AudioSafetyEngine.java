@@ -37,6 +37,7 @@ public final class AudioSafetyEngine {
 
     private static final int SAMPLE_RATE = 48_000;
     private static final long ROUTE_TIMEOUT_MS = 1_000L;
+    private static final long ROUTE_SETTLE_MS = 50L;
     private static final long TEST_DURATION_MS = 10_000L;
     private static final float TEST_GAIN = 0.12f;
 
@@ -57,19 +58,13 @@ public final class AudioSafetyEngine {
     private long routeDeadlineMs;
     private long muteLatencyMs = -1L;
     private long testEndsAtMs;
+    private long fadeGeneration;
     private String targetType = "无";
     private String routeSummary = "尚未建立";
     private String verificationLabel = "未通过";
 
     private final AudioRouting.OnRoutingChangedListener routingListener =
-            router -> {
-                muteLatencyTracker.onRouteSignal(SystemClock.elapsedRealtimeNanos());
-                if (guard.state() == OutputGuard.State.AUDIBLE) {
-                    failForRouteChange(OutputGuard.BlockReason.ROUTE_LOST);
-                } else {
-                    checkRouteNow();
-                }
-            };
+            router -> revalidateAfterRouteSignal();
 
     private final AudioDeviceCallback deviceCallback =
             new AudioDeviceCallback() {
@@ -89,19 +84,15 @@ public final class AudioSafetyEngine {
 
                 @Override
                 public void onAudioDevicesAdded(AudioDeviceInfo[] addedDevices) {
-                    snapshot = inspector.snapshot(audioManager);
-                    listener.onSnapshot(snapshot);
                     if (guard.state() == OutputGuard.State.AUDIBLE
                             || guard.state() == OutputGuard.State.VERIFYING_ROUTE) {
-                        muteLatencyTracker.onRouteSignal(SystemClock.elapsedRealtimeNanos());
-                        if (guard.state() == OutputGuard.State.AUDIBLE) {
-                            failForRouteChange(OutputGuard.BlockReason.ROUTE_LOST);
-                            return;
-                        }
+                        revalidateAfterRouteSignal();
+                    }
+                    snapshot = inspector.snapshot(audioManager);
+                    listener.onSnapshot(snapshot);
+                    if (guard.state() == OutputGuard.State.VERIFYING_ROUTE) {
                         if (snapshot.personalOutputTypes().size() != 1) {
                             failForRouteChange(OutputGuard.BlockReason.MULTIPLE_COMPATIBLE_OUTPUTS);
-                        } else {
-                            checkRouteNow();
                         }
                     }
                 }
@@ -208,7 +199,7 @@ public final class AudioSafetyEngine {
                 listener.onLog("03  读取当前实际路由");
                 routeDeadlineMs = SystemClock.elapsedRealtime() + ROUTE_TIMEOUT_MS;
                 mainHandler.removeCallbacks(routePoller);
-                mainHandler.post(routePoller);
+                mainHandler.postDelayed(routePoller, ROUTE_SETTLE_MS);
                 break;
             case FADE_IN:
                 listener.onLog("04  路由通过，低增益渐强");
@@ -350,6 +341,17 @@ public final class AudioSafetyEngine {
         }
     }
 
+    private void revalidateAfterRouteSignal() {
+        muteLatencyTracker.onRouteSignal(SystemClock.elapsedRealtimeNanos());
+        if (guard.state() == OutputGuard.State.AUDIBLE) {
+            listener.onLog("路由信号到达，先静音并重新验证实际输出");
+            dispatch(OutputGuard.Event.routeSignal());
+        } else if (guard.state() == OutputGuard.State.VERIFYING_ROUTE) {
+            mainHandler.removeCallbacks(routePoller);
+            mainHandler.postDelayed(routePoller, ROUTE_SETTLE_MS);
+        }
+    }
+
     private void handlePlayerError() {
         listener.onLog("播放器写入失败，执行失败静音");
         if (guard.state() == OutputGuard.State.AUDIBLE) {
@@ -362,12 +364,15 @@ public final class AudioSafetyEngine {
 
     private void startControlledFadeIn() {
         pcmAudible.set(true);
+        final long generation = ++fadeGeneration;
         final long started = SystemClock.elapsedRealtime();
         Runnable fade =
                 new Runnable() {
                     @Override
                     public void run() {
-                        if (audioTrack == null || guard.state() != OutputGuard.State.AUDIBLE) {
+                        if (audioTrack == null
+                                || guard.state() != OutputGuard.State.AUDIBLE
+                                || generation != fadeGeneration) {
                             return;
                         }
                         float progress =
@@ -402,6 +407,7 @@ public final class AudioSafetyEngine {
     }
 
     private void muteImmediately() {
+        fadeGeneration++;
         pcmAudible.set(false);
         AudioTrack current = audioTrack;
         if (current != null) {

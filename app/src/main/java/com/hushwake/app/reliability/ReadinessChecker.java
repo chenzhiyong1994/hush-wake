@@ -27,8 +27,10 @@ public final class ReadinessChecker {
             boolean bluetoothPermission,
             boolean mediaVolume,
             String output,
+            boolean outputSelectable,
+            boolean headsetConnected,
             boolean deviceVerified,
-            boolean principleAcknowledged,
+            boolean outputPolicyAcknowledged,
             boolean testAlarmPassed,
             String scheduleIssue) {
         public boolean readyForSound() {
@@ -36,8 +38,9 @@ public final class ReadinessChecker {
                     && notifications
                     && bluetoothPermission
                     && mediaVolume
-                    && deviceVerified
-                    && principleAcknowledged;
+                    && outputSelectable
+                    && (!headsetConnected || deviceVerified)
+                    && outputPolicyAcknowledged;
         }
 
         public boolean fullyReady() {
@@ -70,7 +73,9 @@ public final class ReadinessChecker {
         boolean bluetoothNeeded =
                 outputType == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP
                         || outputType == AudioDeviceInfo.TYPE_BLE_HEADSET;
-        boolean bluetooth = !bluetoothNeeded || bluetoothGranted;
+        boolean bluetooth = bluetoothGranted;
+        boolean headsetConnected = !audio.personalOutputTypes().isEmpty();
+        boolean outputSelectable = audio.personalOutputTypes().size() <= 1;
         DeviceIdentity identity = DeviceFingerprint.create(context, audio.preferredTarget());
         DeviceVerification record =
                 identity == null
@@ -91,11 +96,15 @@ public final class ReadinessChecker {
                 fullScreen,
                 bluetooth,
                 audio.mediaVolume() > 0,
-                audio.personalOutputTypes().isEmpty()
-                        ? "未连接受支持的耳机"
-                        : String.join(" + ", audio.personalOutputTypes()),
+                !headsetConnected
+                        ? "智能外放 · 手机扬声器"
+                        : outputSelectable
+                                ? String.join(" + ", audio.personalOutputTypes())
+                                : "多个耳机 · " + String.join(" + ", audio.personalOutputTypes()),
+                outputSelectable,
+                headsetConnected,
                 verified,
-                preferences.privacyPrincipleAcknowledged(),
+                preferences.outputPolicyAcknowledged(),
                 preferences.testAlarmPassed(),
                 preferences.lastScheduleIssue());
     }

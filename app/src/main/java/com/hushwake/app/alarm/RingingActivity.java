@@ -127,7 +127,7 @@ public final class RingingActivity extends Activity {
         snooze.setText(alarm == null ? "稍后提醒" : "稍后 " + alarm.snoozeMinutes() + " 分钟");
         snooze.setOnClickListener(v -> send(ACTION(AlarmRingingService.ACTION_SNOOZE)));
         root.addView(snooze);
-        TextView privacy = label("无法验证耳机输出时，声音会保持静音。振动只按你的设置兜底。", 12, Color.rgb(126, 145, 136), Typeface.DEFAULT);
+        TextView privacy = label("智能输出：无耳机时正常外放；检测到耳机时只允许已验证的耳机路径。", 12, Color.rgb(126, 145, 136), Typeface.DEFAULT);
         privacy.setGravity(Gravity.CENTER);
         privacy.setPadding(dp(8), dp(34), dp(8), 0);
         root.addView(privacy);

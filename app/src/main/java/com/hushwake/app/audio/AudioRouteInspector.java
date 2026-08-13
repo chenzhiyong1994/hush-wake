@@ -163,6 +163,36 @@ public final class AudioRouteInspector {
         return new RouteEvaluation(RouteStatus.SAFE_COMPATIBLE, typeLabel(routed.getType()));
     }
 
+    public RouteEvaluation evaluatePhoneSpeaker(AudioTrack track) {
+        if (track == null) {
+            return new RouteEvaluation(RouteStatus.UNSAFE, "播放器不存在");
+        }
+        if (Build.VERSION.SDK_INT >= 36) {
+            List<AudioDeviceInfo> routed = track.getRoutedDevices();
+            if (routed.isEmpty()) {
+                return new RouteEvaluation(RouteStatus.PENDING, "等待系统媒体路由建立");
+            }
+            for (AudioDeviceInfo device : routed) {
+                if (device.getType() != AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) {
+                    return new RouteEvaluation(
+                            RouteStatus.UNSAFE,
+                            "智能外放实际路由不是手机扬声器：" + typeLabel(device.getType()));
+                }
+            }
+            return new RouteEvaluation(RouteStatus.SAFE_STRONG, "手机扬声器");
+        }
+        AudioDeviceInfo routed = track.getRoutedDevice();
+        if (routed == null) {
+            return new RouteEvaluation(RouteStatus.PENDING, "等待系统媒体路由建立");
+        }
+        if (routed.getType() != AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) {
+            return new RouteEvaluation(
+                    RouteStatus.UNSAFE,
+                    "智能外放实际路由不是手机扬声器：" + typeLabel(routed.getType()));
+        }
+        return new RouteEvaluation(RouteStatus.SAFE_COMPATIBLE, "手机扬声器");
+    }
+
     public static boolean isAllowedPersonalOutput(AudioDeviceInfo device) {
         int type = device.getType();
         return type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES

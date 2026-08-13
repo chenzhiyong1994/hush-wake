@@ -90,7 +90,7 @@ public final class AlarmRingingService extends Service
         if (!wakeLock.isHeld()) {
             wakeLock.acquire((alarm.maxRingSeconds() + 15L) * 1_000L);
         }
-        startForeground(NOTIFICATION_ID, notification("正在验证耳机输出"));
+        startForeground(NOTIFICATION_ID, notification("正在选择智能输出"));
         NoiseSessionStore.Snapshot noise = new NoiseSessionStore(this).load();
         if (!"stopped".equals(noise.state())) {
             startService(

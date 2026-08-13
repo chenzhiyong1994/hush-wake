@@ -47,6 +47,7 @@ public final class OutputGuard {
             BEGIN,
             PLAYER_STARTED,
             ROUTE_VERIFIED,
+            ROUTE_SIGNAL,
             ROUTE_LOST,
             ROUTE_REJECTED,
             STOP
@@ -75,6 +76,10 @@ public final class OutputGuard {
                 throw new IllegalArgumentException("verificationLevel is required");
             }
             return new Event(Type.ROUTE_VERIFIED, verificationLevel, null);
+        }
+
+        public static Event routeSignal() {
+            return new Event(Type.ROUTE_SIGNAL, null, null);
         }
 
         public static Event routeLost(BlockReason blockReason) {
@@ -136,6 +141,10 @@ public final class OutputGuard {
             verificationLevel = event.verificationLevel;
             state = State.AUDIBLE;
             return decision(Action.FADE_IN);
+        }
+        if (state == State.AUDIBLE && event.type == Event.Type.ROUTE_SIGNAL) {
+            state = State.VERIFYING_ROUTE;
+            return decision(Action.MUTE, Action.VERIFY_ROUTE);
         }
         if (state == State.AUDIBLE && event.type == Event.Type.ROUTE_LOST) {
             return block(event.blockReason);

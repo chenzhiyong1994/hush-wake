@@ -1,6 +1,8 @@
 package com.hushwake.app.audio;
 
+import android.Manifest;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.media.AudioAttributes;
 import android.media.AudioDeviceCallback;
 import android.media.AudioDeviceInfo;
@@ -22,11 +24,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Fail-closed audio session shared by alarms and white noise. The writer emits zero samples and the
- * AudioTrack gain remains zero until the current device verification and actual route both pass.
+ * Smart-output session shared by alarms and white noise. Speaker playback is allowed only when no
+ * headset is present; headset sessions remain silent until device verification and actual routing
+ * both pass.
  */
 public final class PrivatePlaybackEngine {
-    public static final int AUDIO_ENGINE_VERSION = 2;
+    public static final int AUDIO_ENGINE_VERSION = 3;
 
     public enum Purpose { ALARM, WHITE_NOISE }
     public enum State { IDLE, PREPARING_SILENT, VERIFYING_ROUTE, AUDIBLE, BLOCKED, STOPPED }
@@ -49,6 +52,7 @@ public final class PrivatePlaybackEngine {
 
     private static final int SAMPLE_RATE = 48_000;
     private static final long ROUTE_TIMEOUT_MS = 1_000L;
+    private static final long ROUTE_SETTLE_MS = 50L;
 
     private final Context context;
     private final AudioManager audioManager;
@@ -68,17 +72,12 @@ public final class PrivatePlaybackEngine {
     private volatile boolean writerRunning;
     private long routeDeadlineMs;
     private long muteLatencyMs = -1L;
+    private long fadeGeneration;
+    private SmartOutputPolicy.Mode outputMode = SmartOutputPolicy.Mode.BLOCKED;
     private String verificationLevel = "未验证";
 
     private final AudioRouting.OnRoutingChangedListener routingListener =
-            router -> {
-                latencyTracker.onRouteSignal(SystemClock.elapsedRealtimeNanos());
-                if (state == State.AUDIBLE) {
-                    block("ROUTE_CHANGED", "有声期间实际输出发生变化，声音已立即阻断");
-                } else {
-                    checkRoute();
-                }
-            };
+            router -> handleRoutingSignal();
 
     private final AudioDeviceCallback deviceCallback =
             new AudioDeviceCallback() {
@@ -96,20 +95,23 @@ public final class PrivatePlaybackEngine {
 
                 @Override
                 public void onAudioDevicesAdded(AudioDeviceInfo[] addedDevices) {
-                    if (state != State.VERIFYING_ROUTE && state != State.AUDIBLE) return;
-                    latencyTracker.onRouteSignal(SystemClock.elapsedRealtimeNanos());
-                    if (state == State.AUDIBLE) {
-                        block("OUTPUT_SET_CHANGED", "有声期间输出设备集合发生变化，声音已立即阻断");
+                    if (state != State.VERIFYING_ROUTE && state != State.AUDIBLE) {
                         return;
                     }
                     AudioRouteInspector.Snapshot snapshot = inspector.snapshot(audioManager);
+                    if (outputMode == SmartOutputPolicy.Mode.PUBLIC_MEDIA) {
+                        beginPublicRouteRecheck();
+                        return;
+                    }
+                    revalidateAfterRouteSignal();
                     if (snapshot.personalOutputTypes().size() != 1) {
                         block("AMBIGUOUS_OUTPUT", "检测到多个候选输出，声音已阻断");
-                    } else {
-                        checkRoute();
                     }
                 }
             };
+
+    private final Runnable routePoller = this::checkRoute;
+    private final Runnable smartOutputPoller = this::settlePublicRouteSignal;
 
     private final AudioManager.OnAudioFocusChangeListener focusListener =
             change -> {
@@ -132,31 +134,37 @@ public final class PrivatePlaybackEngine {
         latencyTracker.onRouteVerifiedSafe();
         muteLatencyMs = -1L;
         verificationLevel = "未验证";
+        if (context.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT)
+                != PackageManager.PERMISSION_GRANTED) {
+            block("BLUETOOTH_PERMISSION_REQUIRED", "需要蓝牙连接权限以安全选择智能输出");
+            return;
+        }
         AudioRouteInspector.Snapshot snapshot = inspector.snapshot(audioManager);
-        if (!snapshot.canStart()) {
-            block("OUTPUT_UNAVAILABLE", snapshot.blockingReason());
+        outputMode =
+                SmartOutputPolicy.choose(
+                        snapshot.mediaVolume(), snapshot.personalOutputTypes().size());
+        if (outputMode == SmartOutputPolicy.Mode.BLOCKED) {
+            String reason =
+                    snapshot.mediaVolume() <= 0
+                            ? "系统媒体音量为 0；应用不会自动调高"
+                            : "检测到多个候选耳机；请只保留一个连接";
+            block("OUTPUT_UNAVAILABLE", reason);
             return;
         }
-        targetDevice = snapshot.preferredTarget();
-        DeviceIdentity identity = DeviceFingerprint.create(context, targetDevice);
-        if (identity == null) {
-            block("DEVICE_IDENTITY_UNAVAILABLE", "无法安全识别当前耳机；请重新连接或更换耳机");
-            return;
-        }
-        DeviceVerification record = verifications.find(identity.hash());
-        boolean verificationValid =
-                DeviceVerificationPolicy.isValid(
-                        record,
-                        identity.hash(),
-                        PlatformVersion.androidMajor(),
-                        AUDIO_ENGINE_VERSION,
-                        Instant.now());
-        if (!verificationValid) {
-            block("PRIVACY_TEST_REQUIRED", "当前耳机尚无有效隐私测试记录");
-            return;
+        if (outputMode == SmartOutputPolicy.Mode.PRIVATE_HEADSET) {
+            targetDevice = snapshot.preferredTarget();
+            if (!hasValidHeadsetVerification(targetDevice)) {
+                return;
+            }
+        } else {
+            targetDevice = null;
+            verificationLevel = "智能外放";
         }
         state = State.PREPARING_SILENT;
-        notifyState("播放器以双层静音准备");
+        notifyState(
+                outputMode == SmartOutputPolicy.Mode.PRIVATE_HEADSET
+                        ? "耳机模式以双层静音准备"
+                        : "智能输出正在建立系统媒体播放");
         if (!requestAudioFocus()) {
             block("AUDIO_FOCUS_UNAVAILABLE", "当前无法获得音频焦点");
             return;
@@ -227,7 +235,8 @@ public final class PrivatePlaybackEngine {
                             .build();
             samplesAudible.set(false);
             audioTrack.setVolume(0f);
-            if (!audioTrack.setPreferredDevice(targetDevice)) {
+            if (outputMode == SmartOutputPolicy.Mode.PRIVATE_HEADSET
+                    && !audioTrack.setPreferredDevice(targetDevice)) {
                 block("PREFERRED_ROUTE_REJECTED", "Android 拒绝目标耳机路由请求");
                 return;
             }
@@ -237,10 +246,17 @@ public final class PrivatePlaybackEngine {
             AudioTrack writerTrack = audioTrack;
             writerExecutor.execute(() -> writeSamples(writerTrack));
             audioTrack.play();
-            state = State.VERIFYING_ROUTE;
-            routeDeadlineMs = SystemClock.elapsedRealtime() + ROUTE_TIMEOUT_MS;
-            notifyState("正在读取播放器实际路由");
-            mainHandler.post(this::checkRoute);
+            if (outputMode == SmartOutputPolicy.Mode.PUBLIC_MEDIA) {
+                state = State.VERIFYING_ROUTE;
+                routeDeadlineMs = SystemClock.elapsedRealtime() + ROUTE_TIMEOUT_MS;
+                notifyState("正在确认系统媒体外放路由");
+                mainHandler.postDelayed(smartOutputPoller, ROUTE_SETTLE_MS);
+            } else {
+                state = State.VERIFYING_ROUTE;
+                routeDeadlineMs = SystemClock.elapsedRealtime() + ROUTE_TIMEOUT_MS;
+                notifyState("正在读取播放器实际耳机路由");
+                mainHandler.postDelayed(routePoller, ROUTE_SETTLE_MS);
+            }
         } catch (RuntimeException error) {
             block("PLAYER_ERROR", "播放器创建失败：" + error.getClass().getSimpleName());
         }
@@ -257,13 +273,15 @@ public final class PrivatePlaybackEngine {
     }
 
     private void checkRoute() {
-        if (audioTrack == null || (state != State.VERIFYING_ROUTE && state != State.AUDIBLE)) {
+        if (outputMode != SmartOutputPolicy.Mode.PRIVATE_HEADSET
+                || audioTrack == null
+                || (state != State.VERIFYING_ROUTE && state != State.AUDIBLE)) {
             return;
         }
         AudioRouteInspector.RouteEvaluation evaluation = inspector.evaluate(audioTrack, targetDevice);
         if (evaluation.status() == AudioRouteInspector.RouteStatus.PENDING) {
             if (state == State.VERIFYING_ROUTE && SystemClock.elapsedRealtime() < routeDeadlineMs) {
-                mainHandler.postDelayed(this::checkRoute, 50L);
+                mainHandler.postDelayed(routePoller, 50L);
             } else {
                 block("ROUTE_TIMEOUT", "无法在安全窗口内验证实际输出");
             }
@@ -287,6 +305,7 @@ public final class PrivatePlaybackEngine {
     }
 
     private void startFadeIn() {
+        final long generation = ++fadeGeneration;
         final long started = SystemClock.elapsedRealtime();
         final long durationMs = config.fadeInSeconds() * 1_000L;
         final float target = config.volumePercent() / 100f;
@@ -294,7 +313,9 @@ public final class PrivatePlaybackEngine {
                 new Runnable() {
                     @Override
                     public void run() {
-                        if (audioTrack == null || state != State.AUDIBLE) return;
+                        if (audioTrack == null
+                                || state != State.AUDIBLE
+                                || generation != fadeGeneration) return;
                         float progress =
                                 durationMs == 0L
                                         ? 1f
@@ -307,6 +328,131 @@ public final class PrivatePlaybackEngine {
                     }
                 };
         mainHandler.post(fade);
+    }
+
+    private void revalidateAfterRouteSignal() {
+        if (outputMode != SmartOutputPolicy.Mode.PRIVATE_HEADSET) {
+            return;
+        }
+        latencyTracker.onRouteSignal(SystemClock.elapsedRealtimeNanos());
+        if (state == State.AUDIBLE) {
+            muteNow();
+            state = State.VERIFYING_ROUTE;
+            routeDeadlineMs = SystemClock.elapsedRealtime() + ROUTE_TIMEOUT_MS;
+            notifyState("路由信号到达，已静音并重新验证实际输出");
+            mainHandler.removeCallbacks(routePoller);
+            mainHandler.postDelayed(routePoller, ROUTE_SETTLE_MS);
+        } else if (state == State.VERIFYING_ROUTE) {
+            mainHandler.removeCallbacks(routePoller);
+            mainHandler.postDelayed(routePoller, ROUTE_SETTLE_MS);
+        }
+    }
+
+    private void handleRoutingSignal() {
+        if (outputMode == SmartOutputPolicy.Mode.PUBLIC_MEDIA) {
+            beginPublicRouteRecheck();
+        } else {
+            revalidateAfterRouteSignal();
+        }
+    }
+
+    private void beginPublicRouteRecheck() {
+        if (outputMode != SmartOutputPolicy.Mode.PUBLIC_MEDIA
+                || (state != State.AUDIBLE && state != State.VERIFYING_ROUTE)) {
+            return;
+        }
+        latencyTracker.onRouteSignal(SystemClock.elapsedRealtimeNanos());
+        if (state == State.AUDIBLE) {
+            muteNow();
+            state = State.VERIFYING_ROUTE;
+            routeDeadlineMs = SystemClock.elapsedRealtime() + ROUTE_TIMEOUT_MS;
+            notifyState("输出发生变化，已静音并重新选择智能输出");
+        }
+        mainHandler.removeCallbacks(smartOutputPoller);
+        mainHandler.postDelayed(smartOutputPoller, ROUTE_SETTLE_MS);
+    }
+
+    private void settlePublicRouteSignal() {
+        if (outputMode != SmartOutputPolicy.Mode.PUBLIC_MEDIA
+                || state != State.VERIFYING_ROUTE) {
+            return;
+        }
+        AudioRouteInspector.Snapshot snapshot = inspector.snapshot(audioManager);
+        SmartOutputPolicy.Mode next =
+                SmartOutputPolicy.reselectAfterDeviceChange(
+                        outputMode,
+                        snapshot.mediaVolume(),
+                        snapshot.personalOutputTypes().size());
+        if (next == SmartOutputPolicy.Mode.PUBLIC_MEDIA) {
+            AudioRouteInspector.RouteEvaluation evaluation =
+                    inspector.evaluatePhoneSpeaker(audioTrack);
+            if (evaluation.status() == AudioRouteInspector.RouteStatus.PENDING) {
+                if (SystemClock.elapsedRealtime() < routeDeadlineMs) {
+                    mainHandler.postDelayed(smartOutputPoller, 50L);
+                } else {
+                    block("PUBLIC_ROUTE_TIMEOUT", "无法在安全窗口内确认系统媒体外放");
+                }
+                return;
+            }
+            boolean phoneSpeaker =
+                    evaluation.status() == AudioRouteInspector.RouteStatus.SAFE_STRONG
+                            || evaluation.status() == AudioRouteInspector.RouteStatus.SAFE_COMPATIBLE;
+            if (SmartOutputPolicy.confirmPublicRoute(
+                            snapshot.mediaVolume(),
+                            snapshot.personalOutputTypes().size(),
+                            phoneSpeaker)
+                    != SmartOutputPolicy.Mode.PUBLIC_MEDIA) {
+                block("UNSUPPORTED_PUBLIC_ROUTE", evaluation.summary());
+                return;
+            }
+            latencyTracker.onRouteVerifiedSafe();
+            verificationLevel = "智能外放";
+            state = State.AUDIBLE;
+            samplesAudible.set(true);
+            notifyState("智能输出 · 当前使用系统媒体外放");
+            startFadeIn();
+            return;
+        }
+        if (next != SmartOutputPolicy.Mode.PRIVATE_HEADSET) {
+            block("AMBIGUOUS_OUTPUT", "耳机接入后目标不唯一，声音已阻断");
+            return;
+        }
+        targetDevice = snapshot.preferredTarget();
+        if (!hasValidHeadsetVerification(targetDevice)) {
+            return;
+        }
+        if (audioTrack == null || !audioTrack.setPreferredDevice(targetDevice)) {
+            block("PREFERRED_ROUTE_REJECTED", "耳机接入后 Android 拒绝目标路由请求");
+            return;
+        }
+        outputMode = SmartOutputPolicy.Mode.PRIVATE_HEADSET;
+        verificationLevel = "未验证";
+        state = State.VERIFYING_ROUTE;
+        routeDeadlineMs = SystemClock.elapsedRealtime() + ROUTE_TIMEOUT_MS;
+        notifyState("检测到耳机，已停止外放并验证耳机实际路由");
+        mainHandler.removeCallbacks(routePoller);
+        mainHandler.postDelayed(routePoller, ROUTE_SETTLE_MS);
+    }
+
+    private boolean hasValidHeadsetVerification(AudioDeviceInfo device) {
+        DeviceIdentity identity = DeviceFingerprint.create(context, device);
+        if (identity == null) {
+            block("DEVICE_IDENTITY_UNAVAILABLE", "无法安全识别当前耳机；请重新连接或更换耳机");
+            return false;
+        }
+        DeviceVerification record = verifications.find(identity.hash());
+        boolean valid =
+                DeviceVerificationPolicy.isValid(
+                        record,
+                        identity.hash(),
+                        PlatformVersion.androidMajor(),
+                        AUDIO_ENGINE_VERSION,
+                        Instant.now());
+        if (!valid) {
+            block("PRIVACY_TEST_REQUIRED", "当前耳机尚无有效隐私测试记录");
+            return false;
+        }
+        return true;
     }
 
     private void block(String reasonCode, String detail) {
@@ -323,6 +469,7 @@ public final class PrivatePlaybackEngine {
     }
 
     private void muteNow() {
+        fadeGeneration++;
         samplesAudible.set(false);
         AudioTrack current = audioTrack;
         if (current != null) {
@@ -338,6 +485,8 @@ public final class PrivatePlaybackEngine {
 
     private void releaseTrack() {
         mainHandler.removeCallbacksAndMessages(null);
+        mainHandler.removeCallbacks(routePoller);
+        mainHandler.removeCallbacks(smartOutputPoller);
         writerRunning = false;
         AudioTrack current = audioTrack;
         audioTrack = null;

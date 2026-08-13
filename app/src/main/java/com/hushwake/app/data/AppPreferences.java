@@ -9,18 +9,19 @@ import java.util.Base64;
 public final class AppPreferences {
     private static final String NAME = "hushwake_preferences";
     private static final String KEY_INSTALL_SALT = "install_salt";
+    private static final int OUTPUT_POLICY_VERSION = 1;
     private final SharedPreferences values;
 
     public AppPreferences(Context context) {
         values = context.getSharedPreferences(NAME, Context.MODE_PRIVATE);
     }
 
-    public boolean privacyPrincipleAcknowledged() {
-        return values.getBoolean("privacy_principle_acknowledged", false);
+    public boolean outputPolicyAcknowledged() {
+        return values.getInt("output_policy_version", 0) == OUTPUT_POLICY_VERSION;
     }
 
-    public void setPrivacyPrincipleAcknowledged(boolean acknowledged) {
-        values.edit().putBoolean("privacy_principle_acknowledged", acknowledged).apply();
+    public void acknowledgeOutputPolicy() {
+        values.edit().putInt("output_policy_version", OUTPUT_POLICY_VERSION).apply();
     }
 
     public boolean vibrationWarningAcknowledged() {

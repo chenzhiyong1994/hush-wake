@@ -51,6 +51,25 @@ public final class OutputGuardTest {
     }
 
     @Test
+    public void routeSignalMutesAndRevalidatesBeforeResumingTheSameSafeHeadset() {
+        OutputGuard guard = audibleGuard();
+
+        OutputGuard.Decision rechecking = guard.accept(OutputGuard.Event.routeSignal());
+
+        assertEquals(OutputGuard.State.VERIFYING_ROUTE, rechecking.state());
+        assertEquals(
+                List.of(OutputGuard.Action.MUTE, OutputGuard.Action.VERIFY_ROUTE),
+                rechecking.actions());
+
+        OutputGuard.Decision resumed =
+                guard.accept(
+                        OutputGuard.Event.routeVerified(OutputGuard.VerificationLevel.COMPATIBLE));
+
+        assertEquals(OutputGuard.State.AUDIBLE, resumed.state());
+        assertEquals(List.of(OutputGuard.Action.FADE_IN), resumed.actions());
+    }
+
+    @Test
     public void rejectedRouteNeverBecomesAudible() {
         OutputGuard guard = new OutputGuard();
         guard.accept(OutputGuard.Event.begin());

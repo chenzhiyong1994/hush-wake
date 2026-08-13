@@ -72,7 +72,7 @@ Start-Sleep -Seconds 2
 $initial = Get-UiXml
 $onboarding = $initial.SelectSingleNode("//node[@text='HUSHWAKE  /  悄醒']")
 if ($onboarding) {
-    Tap-UiText "我理解：无耳机或无法验证时，闹钟不会发出声音"
+    Tap-UiText "我理解：无耳机时会正常外放；检测到耳机时只允许耳机播放"
     Tap-UiText "进入可靠性中心"
     Assert-UiText "RELIABILITY CENTER  /  分项检查"
 }
