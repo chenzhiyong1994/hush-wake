@@ -1,5 +1,6 @@
 package com.hushwake.app.domain;
 
+import com.hushwake.app.alarm.UnifiedAlarmPolicy;
 import java.util.Objects;
 
 /** Immutable user alarm configuration. Repeat bits follow ISO weekdays: Monday bit 0. */
@@ -98,11 +99,11 @@ public final class Alarm {
                 0,
                 "",
                 "soft_chime",
-                50,
-                15,
-                true,
-                5,
-                120,
+                UnifiedAlarmPolicy.APP_GAIN_PERCENT,
+                UnifiedAlarmPolicy.FADE_IN_SECONDS,
+                UnifiedAlarmPolicy.VIBRATE_WHEN_BLOCKED,
+                UnifiedAlarmPolicy.SNOOZE_MINUTES,
+                UnifiedAlarmPolicy.MAX_RING_SECONDS,
                 true,
                 nextOneTimeEpochDay(
                         hour, minute, java.time.Instant.ofEpochMilli(nowEpochMs)),

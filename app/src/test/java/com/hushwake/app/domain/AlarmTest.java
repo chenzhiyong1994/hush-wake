@@ -2,6 +2,7 @@ package com.hushwake.app.domain;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
@@ -52,5 +53,16 @@ public final class AlarmTest {
                                 1,
                                 0,
                                 0));
+    }
+
+    @Test
+    public void newAlarmsUseTheUnifiedSystemMediaPolicy() {
+        Alarm alarm = Alarm.newDefault(7, 30, 1_700_000_000_000L);
+
+        assertEquals(100, alarm.volumePercent());
+        assertEquals(15, alarm.fadeInSeconds());
+        assertTrue(alarm.vibrationEnabled());
+        assertEquals(5, alarm.snoozeMinutes());
+        assertEquals(120, alarm.maxRingSeconds());
     }
 }

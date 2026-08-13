@@ -59,30 +59,12 @@ public final class AppPreferences {
                 .commit();
     }
 
-    public int defaultAlarmVolume() { return values.getInt("default_alarm_volume", 50); }
-    public int defaultAlarmFadeSeconds() { return values.getInt("default_alarm_fade", 15); }
-    public boolean defaultVibration() { return values.getBoolean("default_vibration", true); }
-    public int defaultSnoozeMinutes() { return values.getInt("default_snooze", 5); }
-    public int defaultMaxRingSeconds() { return values.getInt("default_max_ring", 120); }
-    public int noiseVolume() { return values.getInt("noise_volume", 30); }
     public int noiseTimerMinutes() { return values.getInt("noise_timer", 30); }
     public int noiseFadeSeconds() { return values.getInt("noise_fade", 15); }
     public String noiseSoundId() { return values.getString("noise_sound", "rain"); }
 
-    public void saveAlarmDefaults(
-            int volume, int fadeSeconds, boolean vibration, int snooze, int maxRingSeconds) {
+    public void saveNoiseDefaults(int timerMinutes, int fadeSeconds, String soundId) {
         values.edit()
-                .putInt("default_alarm_volume", volume)
-                .putInt("default_alarm_fade", fadeSeconds)
-                .putBoolean("default_vibration", vibration)
-                .putInt("default_snooze", snooze)
-                .putInt("default_max_ring", maxRingSeconds)
-                .apply();
-    }
-
-    public void saveNoiseDefaults(int volume, int timerMinutes, int fadeSeconds, String soundId) {
-        values.edit()
-                .putInt("noise_volume", volume)
                 .putInt("noise_timer", timerMinutes)
                 .putInt("noise_fade", fadeSeconds)
                 .putString("noise_sound", soundId)

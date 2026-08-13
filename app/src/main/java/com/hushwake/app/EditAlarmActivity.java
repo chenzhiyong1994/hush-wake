@@ -4,23 +4,26 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.TimePickerDialog;
 import android.content.Intent;
-import android.graphics.Color;
 import android.graphics.Typeface;
+import android.media.AudioManager;
 import android.os.Bundle;
+import android.provider.Settings;
+import android.view.Gravity;
 import android.view.View;
-import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
-import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
+import com.hushwake.app.alarm.AlarmRingingService;
 import com.hushwake.app.alarm.AlarmScheduler;
+import com.hushwake.app.alarm.AlarmSessionStore;
+import com.hushwake.app.alarm.AlarmStopPolicy;
+import com.hushwake.app.alarm.UnifiedAlarmPolicy;
 import com.hushwake.app.data.AlarmRepository;
 import com.hushwake.app.data.AppPreferences;
 import com.hushwake.app.domain.Alarm;
@@ -31,7 +34,6 @@ public final class EditAlarmActivity extends Activity {
     public static final String EXTRA_ALARM_ID = "edit_alarm_id";
 
     private AlarmRepository repository;
-    private AppPreferences preferences;
     private Alarm existing;
     private int hour;
     private int minute;
@@ -39,19 +41,12 @@ public final class EditAlarmActivity extends Activity {
     private EditText label;
     private final CheckBox[] weekdayChecks = new CheckBox[7];
     private Spinner sound;
-    private SeekBar volume;
-    private TextView volumeLabel;
-    private Spinner fade;
-    private Switch vibration;
-    private Spinner snooze;
-    private Spinner maxRing;
     private Switch enabled;
 
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         repository = new AlarmRepository(this);
-        preferences = new AppPreferences(this);
         long id = getIntent().getLongExtra(EXTRA_ALARM_ID, 0L);
         existing = id == 0L ? null : repository.find(id);
         LocalTime suggested = LocalTime.now().plusHours(1).withSecond(0).withNano(0);
@@ -65,28 +60,29 @@ public final class EditAlarmActivity extends Activity {
     private View buildScreen() {
         ScrollView scroll = new ScrollView(this);
         scroll.setBackgroundColor(Ui.INK);
+        scroll.setFillViewport(true);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(Ui.dp(this, 22), Ui.dp(this, 22), Ui.dp(this, 22), Ui.dp(this, 46));
+        root.setPadding(Ui.dp(this, 22), Ui.dp(this, 20), Ui.dp(this, 22), Ui.dp(this, 48));
         scroll.addView(root, new ScrollView.LayoutParams(-1, -2));
 
-        TextView back = Ui.text(this, "←  返回", 14, Ui.ACID, Typeface.DEFAULT_BOLD);
-        back.setPadding(0, Ui.dp(this, 4), 0, Ui.dp(this, 20));
+        TextView back = Ui.text(this, "←  返回闹钟", 14, Ui.ACID, Typeface.DEFAULT_BOLD);
+        back.setPadding(0, Ui.dp(this, 6), 0, Ui.dp(this, 20));
         back.setOnClickListener(v -> finish());
         root.addView(back);
-        root.addView(Ui.eyebrow(this, existing == null ? "NEW PRIVATE ALARM" : "EDIT PRIVATE ALARM"));
+        root.addView(Ui.eyebrow(this, existing == null ? "NEW ALARM" : "EDIT ALARM"));
         TextView title =
                 Ui.text(
                         this,
-                        existing == null ? "新建悄醒" : "编辑悄醒",
+                        existing == null ? "几点叫醒你？" : "调整这次提醒",
                         34,
                         Ui.PAPER,
                         Typeface.create("serif", Typeface.BOLD));
-        title.setPadding(0, Ui.dp(this, 10), 0, Ui.dp(this, 24));
+        title.setPadding(0, Ui.dp(this, 10), 0, Ui.dp(this, 22));
         root.addView(title);
 
         timeButton = Ui.button(this, "00:00", false);
-        timeButton.setTextSize(38);
+        timeButton.setTextSize(42);
         timeButton.setTypeface(Typeface.create("serif", Typeface.BOLD));
         timeButton.setOnClickListener(
                 v ->
@@ -104,10 +100,10 @@ public final class EditAlarmActivity extends Activity {
         root.addView(timeButton);
         root.addView(Ui.space(this, 14));
 
-        LinearLayout basics = Ui.card(this, Ui.PANEL);
-        basics.addView(Ui.eyebrow(this, "BASICS  /  时间与重复"));
+        LinearLayout schedule = Ui.card(this, Ui.PANEL);
+        schedule.addView(Ui.eyebrow(this, "SCHEDULE  /  时间"));
         label = new EditText(this);
-        label.setHint("标签（可选，最多 30 字）");
+        label.setHint("标签（可选）");
         label.setHintTextColor(Ui.MUTED);
         label.setTextColor(Ui.PAPER);
         label.setTextSize(16);
@@ -115,10 +111,10 @@ public final class EditAlarmActivity extends Activity {
         label.setMaxLines(1);
         label.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Ui.LINE));
         label.setPadding(0, Ui.dp(this, 14), 0, Ui.dp(this, 10));
-        basics.addView(label);
+        schedule.addView(label);
         TextView repeatLabel = Ui.text(this, "重复", 12, Ui.MUTED, Typeface.DEFAULT_BOLD);
-        repeatLabel.setPadding(0, Ui.dp(this, 14), 0, Ui.dp(this, 6));
-        basics.addView(repeatLabel);
+        repeatLabel.setPadding(0, Ui.dp(this, 16), 0, Ui.dp(this, 7));
+        schedule.addView(repeatLabel);
         LinearLayout days = new LinearLayout(this);
         days.setOrientation(LinearLayout.HORIZONTAL);
         String[] labels = {"一", "二", "三", "四", "五", "六", "日"};
@@ -126,7 +122,7 @@ public final class EditAlarmActivity extends Activity {
             CheckBox check = new CheckBox(this);
             check.setText(labels[i]);
             check.setTextColor(Ui.PAPER);
-            check.setGravity(android.view.Gravity.CENTER);
+            check.setGravity(Gravity.CENTER);
             check.setButtonTintList(
                     new android.content.res.ColorStateList(
                             new int[][] {new int[] {android.R.attr.state_checked}, new int[] {}},
@@ -134,64 +130,41 @@ public final class EditAlarmActivity extends Activity {
             days.addView(check, new LinearLayout.LayoutParams(0, -2, 1));
             weekdayChecks[i] = check;
         }
-        basics.addView(days);
-        root.addView(basics);
+        schedule.addView(days);
+        enabled = new Switch(this);
+        enabled.setText("启用这个闹钟");
+        enabled.setTextColor(Ui.PAPER);
+        enabled.setTextSize(14);
+        enabled.setPadding(0, Ui.dp(this, 14), 0, 0);
+        enabled.setThumbTintList(android.content.res.ColorStateList.valueOf(Ui.ACID));
+        schedule.addView(enabled);
+        root.addView(schedule);
         root.addView(Ui.space(this, 14));
 
-        LinearLayout audio = Ui.card(this, Ui.PANEL);
-        audio.addView(Ui.eyebrow(this, "SMART AUDIO  /  智能输出"));
-        sound = spinner(new String[] {"柔和钟声", "清亮钟声", "地平线"});
-        addField(audio, "铃声", sound);
-        volumeLabel = Ui.text(this, "应用内增益 · 50%", 13, Ui.PAPER, Typeface.DEFAULT_BOLD);
-        volumeLabel.setPadding(0, Ui.dp(this, 14), 0, 0);
-        audio.addView(volumeLabel);
-        volume = new SeekBar(this);
-        volume.setMax(100);
-        volume.setProgressTintList(android.content.res.ColorStateList.valueOf(Ui.ACID));
-        volume.setThumbTintList(android.content.res.ColorStateList.valueOf(Ui.ACID));
-        volume.setOnSeekBarChangeListener(
-                new SeekBar.OnSeekBarChangeListener() {
-                    @Override public void onProgressChanged(SeekBar bar, int value, boolean user) {
-                        volumeLabel.setText("应用内增益 · " + value + "%");
-                    }
-                    @Override public void onStartTrackingTouch(SeekBar bar) {}
-                    @Override public void onStopTrackingTouch(SeekBar bar) {}
-                });
-        audio.addView(volume);
-        fade = spinner(new String[] {"不渐强", "15 秒", "30 秒", "60 秒"});
-        addField(audio, "渐强", fade);
-        TextView guard =
+        LinearLayout soundCard = Ui.card(this, Ui.RAISED);
+        soundCard.addView(Ui.eyebrow(this, "SOUND  /  铃声"));
+        sound = Ui.spinner(this, new String[] {"柔和钟声", "清亮钟声", "地平线"});
+        addField(soundCard, "选择铃声", sound);
+        TextView media =
                 Ui.text(
                         this,
-                        "无耳机时使用系统媒体外放；有耳机时必须通过耳机路由守卫。保存的音量不会修改系统媒体音量。",
-                        12,
-                        Ui.MUTED,
+                        "响铃音量跟随手机媒体音量。无耳机时从扬声器播放；连接耳机时只通过耳机播放。",
+                        13,
+                        Ui.PAPER,
                         Typeface.DEFAULT);
-        guard.setPadding(0, Ui.dp(this, 12), 0, 0);
-        audio.addView(guard);
-        root.addView(audio);
-        root.addView(Ui.space(this, 14));
-
-        LinearLayout fallback = Ui.card(this, Ui.PANEL);
-        fallback.addView(Ui.eyebrow(this, "FALLBACK  /  处置"));
-        vibration = toggle("声音被阻断时振动兜底");
-        fallback.addView(vibration);
-        snooze = spinner(new String[] {"关闭", "3 分钟", "5 分钟", "10 分钟"});
-        addField(fallback, "一次稍后提醒", snooze);
-        maxRing = spinner(new String[] {"30 秒", "1 分钟", "2 分钟", "5 分钟"});
-        addField(fallback, "最长响铃", maxRing);
-        enabled = toggle("保存后启用");
-        fallback.addView(enabled);
-        root.addView(fallback);
+        media.setPadding(0, Ui.dp(this, 14), 0, 0);
+        soundCard.addView(media);
+        Button openVolume = Ui.button(this, "调整手机媒体音量", false);
+        Ui.marginTop(openVolume, 14);
+        openVolume.setOnClickListener(
+                v -> startActivity(new Intent(Settings.ACTION_SOUND_SETTINGS)));
+        soundCard.addView(openVolume);
+        root.addView(soundCard);
         root.addView(Ui.space(this, 18));
 
-        Button save = Ui.button(this, "保存并重新调度", true);
+        Button save = Ui.button(this, "保存闹钟", true);
         save.setOnClickListener(v -> save());
         root.addView(save);
-        Button test = Ui.button(this, "打开隐私测试", false);
-        Ui.marginTop(test, 10);
-        test.setOnClickListener(v -> startActivity(new Intent(this, MainActivity.class)));
-        root.addView(test);
         if (existing != null) {
             Button delete = Ui.button(this, "删除闹钟", false);
             delete.setTextColor(Ui.DANGER);
@@ -204,35 +177,10 @@ public final class EditAlarmActivity extends Activity {
 
     private void bind(Alarm alarm) {
         updateTime();
-        Alarm source = alarm;
-        if (source == null) {
-            long now = System.currentTimeMillis();
-            source =
-                    new Alarm(
-                            0,
-                            hour,
-                            minute,
-                            0,
-                            "",
-                            "soft_chime",
-                            preferences.defaultAlarmVolume(),
-                            preferences.defaultAlarmFadeSeconds(),
-                            preferences.defaultVibration(),
-                            preferences.defaultSnoozeMinutes(),
-                            preferences.defaultMaxRingSeconds(),
-                            true,
-                            Alarm.nextOneTimeEpochDay(hour, minute, java.time.Instant.now()),
-                            now,
-                            now);
-        }
+        Alarm source = alarm == null ? Alarm.newDefault(hour, minute, System.currentTimeMillis()) : alarm;
         label.setText(source.label());
         for (int i = 0; i < 7; i++) weekdayChecks[i].setChecked(source.repeatsOn(i + 1));
         sound.setSelection(soundIndex(source.soundId()));
-        volume.setProgress(source.volumePercent());
-        fade.setSelection(indexOf(new int[] {0, 15, 30, 60}, source.fadeInSeconds()));
-        vibration.setChecked(source.vibrationEnabled());
-        snooze.setSelection(indexOf(new int[] {0, 3, 5, 10}, source.snoozeMinutes()));
-        maxRing.setSelection(indexOf(new int[] {30, 60, 120, 300}, source.maxRingSeconds()));
         enabled.setChecked(source.enabled());
     }
 
@@ -242,31 +190,10 @@ public final class EditAlarmActivity extends Activity {
             label.setError("标签最多 30 个字符");
             return;
         }
-        if (vibration.isChecked() && !preferences.vibrationWarningAcknowledged()) {
-            new AlertDialog.Builder(this)
-                    .setTitle("振动也可能打扰附近的人")
-                    .setMessage("当声音因权限、耳机路由或其他播放问题被阻断时，手机会按此设置振动。你可以现在关闭，也可以确认继续使用。")
-                    .setPositiveButton(
-                            "确认开启",
-                            (d, w) -> {
-                                preferences.setVibrationWarningAcknowledged(true);
-                                persist();
-                            })
-                    .setNegativeButton(
-                            "关闭振动",
-                            (d, w) -> {
-                                vibration.setChecked(false);
-                                persist();
-                            })
-                    .show();
-            return;
-        }
-        persist();
-    }
-
-    private void persist() {
         int repeatMask = 0;
-        for (int i = 0; i < 7; i++) if (weekdayChecks[i].isChecked()) repeatMask |= Alarm.weekdayBit(i + 1);
+        for (int i = 0; i < 7; i++) {
+            if (weekdayChecks[i].isChecked()) repeatMask |= Alarm.weekdayBit(i + 1);
+        }
         long now = System.currentTimeMillis();
         long id = existing == null ? 0L : existing.id();
         long created = existing == null ? now : existing.createdAtEpochMs();
@@ -280,13 +207,14 @@ public final class EditAlarmActivity extends Activity {
                         hour,
                         minute,
                         repeatMask,
-                        label.getText().toString(),
-                        new String[] {"soft_chime", "bright_chime", "horizon"}[sound.getSelectedItemPosition()],
-                        volume.getProgress(),
-                        new int[] {0, 15, 30, 60}[fade.getSelectedItemPosition()],
-                        vibration.isChecked(),
-                        new int[] {0, 3, 5, 10}[snooze.getSelectedItemPosition()],
-                        new int[] {30, 60, 120, 300}[maxRing.getSelectedItemPosition()],
+                        alarmLabel,
+                        new String[] {"soft_chime", "bright_chime", "horizon"}[
+                                sound.getSelectedItemPosition()],
+                        UnifiedAlarmPolicy.APP_GAIN_PERCENT,
+                        UnifiedAlarmPolicy.FADE_IN_SECONDS,
+                        UnifiedAlarmPolicy.VIBRATE_WHEN_BLOCKED,
+                        UnifiedAlarmPolicy.SNOOZE_MINUTES,
+                        UnifiedAlarmPolicy.MAX_RING_SECONDS,
                         enabled.isChecked(),
                         oneTimeDate,
                         created,
@@ -301,7 +229,8 @@ public final class EditAlarmActivity extends Activity {
                                         || result.result() == AlarmScheduler.Result.DISABLED
                                 ? ""
                                 : result.detail());
-        Toast.makeText(this, result.detail(), Toast.LENGTH_LONG).show();
+        if (!saved.enabled()) stopIfRinging(saved.id());
+        Toast.makeText(this, result.detail(), Toast.LENGTH_SHORT).show();
         setResult(RESULT_OK);
         finish();
     }
@@ -309,11 +238,12 @@ public final class EditAlarmActivity extends Activity {
     private void confirmDelete() {
         new AlertDialog.Builder(this)
                 .setTitle("删除这个闹钟？")
-                .setMessage("未来系统调度也会同时取消。此操作无法撤销。")
+                .setMessage("未来调度会取消；如果它正在响，也会立即停止。")
                 .setPositiveButton(
                         "删除",
                         (d, w) -> {
                             new AlarmScheduler(this).cancel(existing.id());
+                            stopIfRinging(existing.id());
                             repository.delete(existing.id());
                             setResult(RESULT_OK);
                             finish();
@@ -322,40 +252,33 @@ public final class EditAlarmActivity extends Activity {
                 .show();
     }
 
-    private Spinner spinner(String[] items) {
-        Spinner spinner = new Spinner(this);
-        ArrayAdapter<String> adapter =
-                new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, items);
-        spinner.setAdapter(adapter);
-        spinner.setPopupBackgroundDrawable(Ui.round(this, Ui.RAISED, 8, Ui.LINE));
-        spinner.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Ui.ACID));
-        return spinner;
-    }
-
-    private Switch toggle(String text) {
-        Switch toggle = new Switch(this);
-        toggle.setText(text);
-        toggle.setTextColor(Ui.PAPER);
-        toggle.setTextSize(14);
-        toggle.setPadding(0, Ui.dp(this, 14), 0, Ui.dp(this, 4));
-        toggle.setThumbTintList(android.content.res.ColorStateList.valueOf(Ui.ACID));
-        return toggle;
+    private void stopIfRinging(long alarmId) {
+        AlarmSessionStore.Snapshot active = new AlarmSessionStore(this).load();
+        if (!AlarmStopPolicy.shouldStop(
+                alarmId, false, active.alarmId(), active.state())) return;
+        startService(
+                new Intent(this, AlarmRingingService.class)
+                        .setAction(AlarmRingingService.ACTION_STOP)
+                        .putExtra(AlarmRingingService.EXTRA_STOP_ALARM_ID, alarmId));
     }
 
     private void addField(LinearLayout parent, String title, View input) {
-        TextView label = Ui.text(this, title, 12, Ui.MUTED, Typeface.DEFAULT_BOLD);
-        label.setPadding(0, Ui.dp(this, 14), 0, Ui.dp(this, 4));
-        parent.addView(label);
+        TextView fieldLabel = Ui.text(this, title, 12, Ui.MUTED, Typeface.DEFAULT_BOLD);
+        fieldLabel.setPadding(0, Ui.dp(this, 14), 0, Ui.dp(this, 4));
+        parent.addView(fieldLabel);
         parent.addView(input, new LinearLayout.LayoutParams(-1, -2));
     }
 
-    private void updateTime() { timeButton.setText(String.format(java.util.Locale.ROOT, "%02d:%02d", hour, minute)); }
-    private int soundIndex(String id) { return "bright_chime".equals(id) ? 1 : "horizon".equals(id) ? 2 : 0; }
-    private static int indexOf(int[] values, int target) {
-        for (int i = 0; i < values.length; i++) if (values[i] == target) return i;
-        return 0;
+    private void updateTime() {
+        timeButton.setText(String.format(java.util.Locale.ROOT, "%02d:%02d", hour, minute));
     }
+
+    private int soundIndex(String id) {
+        return "bright_chime".equals(id) ? 1 : "horizon".equals(id) ? 2 : 0;
+    }
+
     private void configureWindow() {
+        setVolumeControlStream(AudioManager.STREAM_MUSIC);
         getWindow().setStatusBarColor(Ui.INK);
         getWindow().setNavigationBarColor(Ui.INK);
         getWindow().setNavigationBarContrastEnforced(false);

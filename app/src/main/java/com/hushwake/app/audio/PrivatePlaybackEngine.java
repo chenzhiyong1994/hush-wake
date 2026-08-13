@@ -3,12 +3,14 @@ package com.hushwake.app.audio;
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.content.res.AssetFileDescriptor;
 import android.media.AudioAttributes;
 import android.media.AudioDeviceCallback;
 import android.media.AudioDeviceInfo;
 import android.media.AudioFocusRequest;
 import android.media.AudioFormat;
 import android.media.AudioManager;
+import android.media.MediaPlayer;
 import android.media.AudioRouting;
 import android.media.AudioTrack;
 import android.os.Handler;
@@ -18,6 +20,8 @@ import com.hushwake.app.data.DeviceVerificationRepository;
 import com.hushwake.app.domain.DeviceVerification;
 import com.hushwake.app.domain.DeviceVerificationPolicy;
 import com.hushwake.app.platform.PlatformVersion;
+import com.hushwake.app.noise.SleepSoundCatalog;
+import java.io.IOException;
 import java.time.Instant;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -68,6 +72,7 @@ public final class PrivatePlaybackEngine {
     private State state = State.IDLE;
     private AudioDeviceInfo targetDevice;
     private AudioTrack audioTrack;
+    private MediaPlayer mediaPlayer;
     private AudioFocusRequest focusRequest;
     private volatile boolean writerRunning;
     private long routeDeadlineMs;
@@ -170,7 +175,11 @@ public final class PrivatePlaybackEngine {
             return;
         }
         notifyState("播放器以双层静音启动");
-        createSilentTrack();
+        if (config.purpose() == Purpose.WHITE_NOISE) {
+            createSilentRecordingPlayer();
+        } else {
+            createSilentTrack();
+        }
     }
 
     public void stop() {
@@ -184,8 +193,8 @@ public final class PrivatePlaybackEngine {
 
     public void setVolumePercent(int percent) {
         if (percent < 0 || percent > 100) return;
-        if (state == State.AUDIBLE && audioTrack != null) {
-            audioTrack.setVolume(percent / 100f);
+        if (state == State.AUDIBLE && activeRouter() != null) {
+            setPlaybackVolume(percent / 100f);
         }
     }
 
@@ -262,6 +271,48 @@ public final class PrivatePlaybackEngine {
         }
     }
 
+    private void createSilentRecordingPlayer() {
+        try (AssetFileDescriptor source =
+                context.getResources()
+                        .openRawResourceFd(SleepSoundCatalog.resourceId(config.soundId()))) {
+            mediaPlayer = new MediaPlayer();
+            mediaPlayer.setAudioAttributes(audioAttributes());
+            mediaPlayer.setDataSource(
+                    source.getFileDescriptor(), source.getStartOffset(), source.getLength());
+            mediaPlayer.setLooping(true);
+            mediaPlayer.setVolume(0f, 0f);
+            mediaPlayer.setOnErrorListener(
+                    (player, what, extra) -> {
+                        block("PLAYER_ERROR", "助眠录音播放失败");
+                        return true;
+                    });
+            if (outputMode == SmartOutputPolicy.Mode.PRIVATE_HEADSET
+                    && !mediaPlayer.setPreferredDevice(targetDevice)) {
+                block("PREFERRED_ROUTE_REJECTED", "Android 拒绝目标耳机路由请求");
+                return;
+            }
+            mediaPlayer.addOnRoutingChangedListener(routingListener, mainHandler);
+            audioManager.registerAudioDeviceCallback(deviceCallback, mainHandler);
+            mediaPlayer.prepare();
+            mediaPlayer.start();
+            beginRouteVerification();
+        } catch (IOException | RuntimeException error) {
+            block("PLAYER_ERROR", "助眠录音播放失败：" + error.getClass().getSimpleName());
+        }
+    }
+
+    private void beginRouteVerification() {
+        state = State.VERIFYING_ROUTE;
+        routeDeadlineMs = SystemClock.elapsedRealtime() + ROUTE_TIMEOUT_MS;
+        if (outputMode == SmartOutputPolicy.Mode.PUBLIC_MEDIA) {
+            notifyState("正在确认系统媒体外放路由");
+            mainHandler.postDelayed(smartOutputPoller, ROUTE_SETTLE_MS);
+        } else {
+            notifyState("正在读取播放器实际耳机路由");
+            mainHandler.postDelayed(routePoller, ROUTE_SETTLE_MS);
+        }
+    }
+
     private AudioAttributes audioAttributes() {
         return new AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_MEDIA)
@@ -274,11 +325,11 @@ public final class PrivatePlaybackEngine {
 
     private void checkRoute() {
         if (outputMode != SmartOutputPolicy.Mode.PRIVATE_HEADSET
-                || audioTrack == null
+                || activeRouter() == null
                 || (state != State.VERIFYING_ROUTE && state != State.AUDIBLE)) {
             return;
         }
-        AudioRouteInspector.RouteEvaluation evaluation = inspector.evaluate(audioTrack, targetDevice);
+        AudioRouteInspector.RouteEvaluation evaluation = inspector.evaluate(activeRouter(), targetDevice);
         if (evaluation.status() == AudioRouteInspector.RouteStatus.PENDING) {
             if (state == State.VERIFYING_ROUTE && SystemClock.elapsedRealtime() < routeDeadlineMs) {
                 mainHandler.postDelayed(routePoller, 50L);
@@ -313,7 +364,7 @@ public final class PrivatePlaybackEngine {
                 new Runnable() {
                     @Override
                     public void run() {
-                        if (audioTrack == null
+                        if (activeRouter() == null
                                 || state != State.AUDIBLE
                                 || generation != fadeGeneration) return;
                         float progress =
@@ -323,7 +374,7 @@ public final class PrivatePlaybackEngine {
                                                 1f,
                                                 (SystemClock.elapsedRealtime() - started)
                                                         / (float) durationMs);
-                        audioTrack.setVolume(target * progress);
+                        setPlaybackVolume(target * progress);
                         if (progress < 1f) mainHandler.postDelayed(this, 50L);
                     }
                 };
@@ -385,7 +436,7 @@ public final class PrivatePlaybackEngine {
                         snapshot.personalOutputTypes().size());
         if (next == SmartOutputPolicy.Mode.PUBLIC_MEDIA) {
             AudioRouteInspector.RouteEvaluation evaluation =
-                    inspector.evaluatePhoneSpeaker(audioTrack);
+                    inspector.evaluatePhoneSpeaker(activeRouter());
             if (evaluation.status() == AudioRouteInspector.RouteStatus.PENDING) {
                 if (SystemClock.elapsedRealtime() < routeDeadlineMs) {
                     mainHandler.postDelayed(smartOutputPoller, 50L);
@@ -421,7 +472,8 @@ public final class PrivatePlaybackEngine {
         if (!hasValidHeadsetVerification(targetDevice)) {
             return;
         }
-        if (audioTrack == null || !audioTrack.setPreferredDevice(targetDevice)) {
+        AudioRouting router = activeRouter();
+        if (router == null || !router.setPreferredDevice(targetDevice)) {
             block("PREFERRED_ROUTE_REJECTED", "耳机接入后 Android 拒绝目标路由请求");
             return;
         }
@@ -479,6 +531,14 @@ public final class PrivatePlaybackEngine {
                 // A concurrently failed/released track cannot emit app audio.
             }
         }
+        MediaPlayer recording = mediaPlayer;
+        if (recording != null) {
+            try {
+                recording.setVolume(0f, 0f);
+            } catch (RuntimeException ignored) {
+                // A concurrently failed/released player cannot emit app audio.
+            }
+        }
         long measured = latencyTracker.consumeOnMute(SystemClock.elapsedRealtimeNanos());
         if (measured >= 0L) muteLatencyMs = measured;
     }
@@ -490,17 +550,35 @@ public final class PrivatePlaybackEngine {
         writerRunning = false;
         AudioTrack current = audioTrack;
         audioTrack = null;
-        if (current == null) return;
-        try { current.removeOnRoutingChangedListener(routingListener); } catch (RuntimeException ignored) {}
+        MediaPlayer recording = mediaPlayer;
+        mediaPlayer = null;
+        if (current == null && recording == null) return;
         try { audioManager.unregisterAudioDeviceCallback(deviceCallback); } catch (RuntimeException ignored) {}
-        try {
-            current.pause();
-            current.flush();
-            current.stop();
-        } catch (RuntimeException ignored) {
-            // Release is the terminal action.
+        if (current != null) {
+            try { current.removeOnRoutingChangedListener(routingListener); } catch (RuntimeException ignored) {}
+            try {
+                current.pause();
+                current.flush();
+                current.stop();
+            } catch (RuntimeException ignored) {
+                // Release is the terminal action.
+            }
+            current.release();
         }
-        current.release();
+        if (recording != null) {
+            try { recording.removeOnRoutingChangedListener(routingListener); } catch (RuntimeException ignored) {}
+            try { recording.stop(); } catch (RuntimeException ignored) {}
+            recording.release();
+        }
+    }
+
+    private AudioRouting activeRouter() {
+        return mediaPlayer != null ? mediaPlayer : audioTrack;
+    }
+
+    private void setPlaybackVolume(float volume) {
+        if (audioTrack != null) audioTrack.setVolume(volume);
+        if (mediaPlayer != null) mediaPlayer.setVolume(volume, volume);
     }
 
     private void abandonAudioFocus() {
@@ -516,7 +594,7 @@ public final class PrivatePlaybackEngine {
 
     private void writeSamples(AudioTrack writerTrack) {
         short[] buffer = new short[960];
-        Synth synth = new Synth(config.soundId(), config.purpose());
+        AlarmSynth synth = new AlarmSynth(config.soundId());
         while (writerRunning && !Thread.currentThread().isInterrupted()) {
             if (samplesAudible.get()) {
                 synth.fill(buffer);
@@ -531,22 +609,17 @@ public final class PrivatePlaybackEngine {
         }
     }
 
-    private static final class Synth {
+    private static final class AlarmSynth {
         private final String soundId;
-        private final Purpose purpose;
         private long frame;
-        private long random = 0x6a09e667f3bcc909L;
-        private double low;
-        private double mid;
 
-        Synth(String soundId, Purpose purpose) {
+        AlarmSynth(String soundId) {
             this.soundId = soundId;
-            this.purpose = purpose;
         }
 
         void fill(short[] target) {
             for (int i = 0; i < target.length; i++, frame++) {
-                double sample = purpose == Purpose.ALARM ? alarmSample() : noiseSample();
+                double sample = alarmSample();
                 target[i] = (short) (Math.max(-1d, Math.min(1d, sample)) * Short.MAX_VALUE * 0.35d);
             }
         }
@@ -566,23 +639,5 @@ public final class PrivatePlaybackEngine {
                     / 1.38d;
         }
 
-        private double noiseSample() {
-            random ^= random << 13;
-            random ^= random >>> 7;
-            random ^= random << 17;
-            double white = ((random >>> 11) / (double) (1L << 53)) * 2d - 1d;
-            low += 0.015d * (white - low);
-            mid += 0.08d * (white - mid);
-            if ("pink".equals(soundId)) return low * 0.8d + mid * 0.2d;
-            if ("ocean".equals(soundId)) {
-                double swell = 0.42d + 0.35d * Math.sin(2d * Math.PI * frame / SAMPLE_RATE / 7d);
-                return (low * 0.85d + mid * 0.15d) * swell;
-            }
-            if ("campfire".equals(soundId)) {
-                double crackle = Math.abs(white) > 0.985d ? white * 0.8d : 0d;
-                return low * 0.65d + crackle;
-            }
-            return low * 0.7d + mid * 0.3d;
-        }
     }
 }

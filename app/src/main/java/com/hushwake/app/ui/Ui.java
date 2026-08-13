@@ -11,7 +11,9 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.ArrayAdapter;
 import android.widget.Space;
+import android.widget.Spinner;
 import android.widget.TextView;
 
 public final class Ui {
@@ -66,6 +68,42 @@ public final class Ui {
                 new RippleDrawable(ColorStateList.valueOf(Color.argb(50, 255, 255, 255)), shape, null));
         button.setLayoutParams(new LinearLayout.LayoutParams(-1, -2));
         return button;
+    }
+
+    public static Spinner spinner(Context context, String[] values) {
+        Spinner spinner = new Spinner(context);
+        ArrayAdapter<String> adapter =
+                new ArrayAdapter<>(context, android.R.layout.simple_spinner_item, values) {
+                    @Override
+                    public View getView(int position, View convertView, ViewGroup parent) {
+                        TextView view =
+                                (TextView) super.getView(position, convertView, parent);
+                        styleSpinnerText(view, PAPER);
+                        return view;
+                    }
+
+                    @Override
+                    public View getDropDownView(
+                            int position, View convertView, ViewGroup parent) {
+                        TextView view =
+                                (TextView) super.getDropDownView(position, convertView, parent);
+                        styleSpinnerText(view, PAPER);
+                        view.setBackgroundColor(RAISED);
+                        return view;
+                    }
+                };
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner.setAdapter(adapter);
+        spinner.setPopupBackgroundDrawable(round(context, RAISED, 12, LINE));
+        spinner.setBackgroundTintList(ColorStateList.valueOf(ACID));
+        spinner.setMinimumHeight(dp(context, 52));
+        return spinner;
+    }
+
+    private static void styleSpinnerText(TextView view, int color) {
+        view.setTextColor(color);
+        view.setTextSize(15);
+        view.setPadding(dp(view.getContext(), 12), dp(view.getContext(), 12), dp(view.getContext(), 12), dp(view.getContext(), 12));
     }
 
     public static View divider(Context context) {

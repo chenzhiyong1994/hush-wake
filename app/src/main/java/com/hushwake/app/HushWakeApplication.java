@@ -25,7 +25,7 @@ public final class HushWakeApplication extends Application {
 
         NotificationChannel noise =
                 new NotificationChannel(
-                        NOISE_CHANNEL, "耳机白噪音", NotificationManager.IMPORTANCE_LOW);
+                        NOISE_CHANNEL, "助眠声", NotificationManager.IMPORTANCE_LOW);
         noise.setDescription("受耳机隐私守卫保护的后台环境音控制");
         noise.setSound(null, (AudioAttributes) null);
         noise.enableVibration(false);

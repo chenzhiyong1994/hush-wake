@@ -9,7 +9,7 @@ import android.database.sqlite.SQLiteOpenHelper;
 /** Single local fact store. The application intentionally has no network or account layer. */
 public final class HushWakeDatabase extends SQLiteOpenHelper {
     private static final String NAME = "hushwake.db";
-    private static final int VERSION = 2;
+    private static final int VERSION = 3;
     private static volatile HushWakeDatabase instance;
 
     public static HushWakeDatabase get(Context context) {
@@ -61,18 +61,6 @@ public final class HushWakeDatabase extends SQLiteOpenHelper {
                         + "audio_engine_version INTEGER NOT NULL,"
                         + "verified_at INTEGER NOT NULL,"
                         + "passed INTEGER NOT NULL)" );
-        database.execSQL(
-                "CREATE TABLE playback_events ("
-                        + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                        + "alarm_id INTEGER,"
-                        + "event_type TEXT NOT NULL,"
-                        + "result TEXT NOT NULL,"
-                        + "reason_code TEXT NOT NULL DEFAULT '',"
-                        + "verification_level TEXT NOT NULL DEFAULT '',"
-                        + "latency_ms INTEGER NOT NULL DEFAULT -1,"
-                        + "created_at INTEGER NOT NULL)" );
-        database.execSQL(
-                "CREATE INDEX playback_events_created_at ON playback_events(created_at DESC)" );
     }
 
     @Override
@@ -82,6 +70,10 @@ public final class HushWakeDatabase extends SQLiteOpenHelper {
                     "ALTER TABLE alarms ADD COLUMN one_time_epoch_day INTEGER NOT NULL DEFAULT -9223372036854775808");
             database.execSQL("UPDATE alarms SET enabled = 0 WHERE repeat_mask = 0");
         }
+        if (oldVersion < 3) {
+            database.execSQL("DROP INDEX IF EXISTS playback_events_created_at");
+            database.execSQL("DROP TABLE IF EXISTS playback_events");
+        }
     }
 
     /** Deletes every user-owned row, resets local row counters, and removes recoverable free pages. */
@@ -90,11 +82,9 @@ public final class HushWakeDatabase extends SQLiteOpenHelper {
         database.execSQL("PRAGMA secure_delete=ON");
         database.beginTransaction();
         try {
-            database.delete("playback_events", null, null);
             database.delete("device_verifications", null, null);
             database.delete("alarms", null, null);
-            database.execSQL(
-                    "DELETE FROM sqlite_sequence WHERE name IN ('alarms','playback_events')");
+            database.execSQL("DELETE FROM sqlite_sequence WHERE name = 'alarms'");
             database.setTransactionSuccessful();
         } finally {
             database.endTransaction();

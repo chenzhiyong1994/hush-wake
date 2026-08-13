@@ -72,17 +72,14 @@ Start-Sleep -Seconds 2
 $initial = Get-UiXml
 $onboarding = $initial.SelectSingleNode("//node[@text='HUSHWAKE  /  悄醒']")
 if ($onboarding) {
-    Tap-UiText "我理解：无耳机时会正常外放；检测到耳机时只允许耳机播放"
-    Tap-UiText "进入可靠性中心"
-    Assert-UiText "RELIABILITY CENTER  /  分项检查"
+    Tap-UiText "我了解当前输出会随耳机连接状态自动选择"
+    Tap-UiText "开始使用"
+    Assert-UiText "HUSHWAKE  /  ALARMS"
 }
 
 $screens = @(
-    @{ Tab = "闹钟"; Marker = "HUSHWAKE  /  PRIVATE ALARMS" },
-    @{ Tab = "白噪音"; Marker = "EAR-SAFE AMBIENCE  /  离线" },
-    @{ Tab = "可靠性"; Marker = "RELIABILITY CENTER  /  分项检查" },
-    @{ Tab = "记录"; Marker = "LOCAL HISTORY  /  最近 30 次或 30 天" },
-    @{ Tab = "设置"; Marker = "SETTINGS & PRIVACY  /  本地" }
+    @{ Tab = "闹钟"; Marker = "HUSHWAKE  /  ALARMS" },
+    @{ Tab = "助眠声"; Marker = "SLEEP SOUNDS  /  真实录音" }
 )
 foreach ($screen in $screens) {
     Tap-UiText $screen.Tab
@@ -90,11 +87,11 @@ foreach ($screen in $screens) {
 }
 
 Tap-UiText "闹钟"
-Tap-UiText "+  新建私密闹钟"
-Assert-UiText "NEW PRIVATE ALARM"
+Tap-UiText "+  新建闹钟"
+Assert-UiText "NEW ALARM"
 Invoke-Adb -Arguments @("shell", "input", "swipe", "540", "2050", "540", "450", "500") | Out-Null
 Start-Sleep -Milliseconds 500
-Assert-UiText "保存并重新调度"
+Assert-UiText "保存闹钟"
 Invoke-Adb -Arguments @("shell", "input", "keyevent", "BACK") | Out-Null
 Start-Sleep -Milliseconds 500
 
@@ -104,4 +101,4 @@ if (-not $appProcessId -or $crashLog -match "Process: $([regex]::Escape($package
     throw "HushWake smoke test found a crash or missing process`n$crashLog"
 }
 
-Write-Output "PASS: onboarding, five primary screens, and alarm editor are alive with PID $appProcessId"
+Write-Output "PASS: onboarding, two primary screens, and simplified alarm editor are alive with PID $appProcessId"

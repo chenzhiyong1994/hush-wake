@@ -4,7 +4,6 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import com.hushwake.app.data.AlarmRepository;
-import com.hushwake.app.data.PlaybackEventRepository;
 import com.hushwake.app.domain.Alarm;
 
 public final class AlarmTriggerReceiver extends BroadcastReceiver {
@@ -24,8 +23,6 @@ public final class AlarmTriggerReceiver extends BroadcastReceiver {
 
         long lateness = Math.max(0L, System.currentTimeMillis() - scheduledAt);
         if (scheduledAt <= 0L || lateness > MISSED_WINDOW_MS) {
-            new PlaybackEventRepository(context)
-                    .record(alarmId, "missed", "已错过", "TRIGGER_TOO_LATE", "", -1L);
             advanceNormalSchedule(context, repository, alarm, snooze);
             return;
         }

@@ -1,11 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.HushWake" parent="android:style/Theme.Material.Light.NoActionBar">
+    <style name="Theme.HushWake" parent="android:style/Theme.Material.NoActionBar">
         <item name="android:fontFamily">sans</item>
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:statusBarColor">#09110F</item>
         <item name="android:navigationBarColor">#09110F</item>
         <item name="android:colorAccent">#E9FF70</item>
+        <item name="android:windowBackground">#09110F</item>
+        <item name="android:textColorPrimary">#F2F7ED</item>
+        <item name="android:textColorSecondary">#A8B8B1</item>
+        <item name="android:windowNoTitle">true</item>
         <item name="android:windowLightNavigationBar">false</item>
         <item name="android:windowActionModeOverlay">true</item>
     </style>

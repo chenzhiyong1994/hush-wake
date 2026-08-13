@@ -2,7 +2,7 @@ package com.hushwake.app.audio;
 
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
-import android.media.AudioTrack;
+import android.media.AudioRouting;
 import android.os.Build;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -124,12 +124,12 @@ public final class AudioRouteInspector {
                 reason);
     }
 
-    public RouteEvaluation evaluate(AudioTrack track, AudioDeviceInfo target) {
-        if (track == null || target == null) {
+    public RouteEvaluation evaluate(AudioRouting player, AudioDeviceInfo target) {
+        if (player == null || target == null) {
             return new RouteEvaluation(RouteStatus.UNSAFE, "播放器或目标输出不存在");
         }
         if (Build.VERSION.SDK_INT >= 36) {
-            List<AudioDeviceInfo> routed = track.getRoutedDevices();
+            List<AudioDeviceInfo> routed = player.getRoutedDevices();
             if (routed.isEmpty()) {
                 return new RouteEvaluation(RouteStatus.PENDING, "等待实际路由建立");
             }
@@ -152,7 +152,7 @@ public final class AudioRouteInspector {
             return new RouteEvaluation(RouteStatus.SAFE_STRONG, joinLabels(labels));
         }
 
-        AudioDeviceInfo routed = track.getRoutedDevice();
+        AudioDeviceInfo routed = player.getRoutedDevice();
         if (routed == null) {
             return new RouteEvaluation(RouteStatus.PENDING, "等待单路由证据");
         }
@@ -163,12 +163,12 @@ public final class AudioRouteInspector {
         return new RouteEvaluation(RouteStatus.SAFE_COMPATIBLE, typeLabel(routed.getType()));
     }
 
-    public RouteEvaluation evaluatePhoneSpeaker(AudioTrack track) {
-        if (track == null) {
+    public RouteEvaluation evaluatePhoneSpeaker(AudioRouting player) {
+        if (player == null) {
             return new RouteEvaluation(RouteStatus.UNSAFE, "播放器不存在");
         }
         if (Build.VERSION.SDK_INT >= 36) {
-            List<AudioDeviceInfo> routed = track.getRoutedDevices();
+            List<AudioDeviceInfo> routed = player.getRoutedDevices();
             if (routed.isEmpty()) {
                 return new RouteEvaluation(RouteStatus.PENDING, "等待系统媒体路由建立");
             }
@@ -181,7 +181,7 @@ public final class AudioRouteInspector {
             }
             return new RouteEvaluation(RouteStatus.SAFE_STRONG, "手机扬声器");
         }
-        AudioDeviceInfo routed = track.getRoutedDevice();
+        AudioDeviceInfo routed = player.getRoutedDevice();
         if (routed == null) {
             return new RouteEvaluation(RouteStatus.PENDING, "等待系统媒体路由建立");
         }

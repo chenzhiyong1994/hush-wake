@@ -11,9 +11,8 @@ import com.hushwake.app.HomeActivity;
 import com.hushwake.app.HushWakeApplication;
 import com.hushwake.app.R;
 import com.hushwake.app.audio.PrivatePlaybackEngine;
-import com.hushwake.app.data.PlaybackEventRepository;
 
-/** Foreground white-noise playback; timer continues while paused and never exceeds eight hours. */
+/** Foreground sleep-sound playback; timer continues while paused and never exceeds eight hours. */
 public final class WhiteNoiseService extends Service
         implements PrivatePlaybackEngine.Listener {
     public static final String ACTION_START = "com.hushwake.app.action.NOISE_START";
@@ -22,10 +21,8 @@ public final class WhiteNoiseService extends Service
     public static final String ACTION_STOP = "com.hushwake.app.action.NOISE_STOP";
     public static final String ACTION_STATE = "com.hushwake.app.action.NOISE_STATE";
     public static final String EXTRA_SOUND_ID = "sound_id";
-    public static final String EXTRA_VOLUME = "volume";
     public static final String EXTRA_TIMER_MINUTES = "timer_minutes";
     public static final String EXTRA_FADE_SECONDS = "fade_seconds";
-    public static final String EXTRA_DISCARD = "discard_without_history";
 
     private static final int NOTIFICATION_ID = 4201;
     private static final long MAX_SESSION_MS = 8L * 60L * 60L * 1_000L;
@@ -34,13 +31,11 @@ public final class WhiteNoiseService extends Service
     private PrivatePlaybackEngine engine;
     private NoiseSessionStore store;
     private String soundId = "rain";
-    private int volumePercent = 30;
     private int fadeSeconds = 15;
     private long endsAtEpochMs;
     private boolean paused;
     private boolean stopping;
     private boolean completed;
-    private boolean discardWithoutHistory;
     private String detail = "正在建立安全播放会话";
 
     @Override
@@ -54,7 +49,6 @@ public final class WhiteNoiseService extends Service
         if (intent == null) return START_NOT_STICKY;
         String action = intent.getAction();
         if (ACTION_STOP.equals(action)) {
-            discardWithoutHistory = intent.getBooleanExtra(EXTRA_DISCARD, false);
             stopSession("用户停止");
             return START_NOT_STICKY;
         }
@@ -70,14 +64,12 @@ public final class WhiteNoiseService extends Service
 
         soundId = intent.getStringExtra(EXTRA_SOUND_ID);
         if (soundId == null || soundId.isBlank()) soundId = "rain";
-        volumePercent = clamp(intent.getIntExtra(EXTRA_VOLUME, 30), 0, 100);
         fadeSeconds = clamp(intent.getIntExtra(EXTRA_FADE_SECONDS, 15), 0, 30);
         int timerMinutes = clamp(intent.getIntExtra(EXTRA_TIMER_MINUTES, 30), 0, 480);
         long requested = timerMinutes == 0 ? MAX_SESSION_MS : timerMinutes * 60_000L;
         endsAtEpochMs = System.currentTimeMillis() + Math.min(requested, MAX_SESSION_MS);
         stopping = false;
         completed = false;
-        discardWithoutHistory = false;
         paused = false;
         startForeground(NOTIFICATION_ID, notification("正在选择智能输出"));
         scheduleEnd();
@@ -94,8 +86,6 @@ public final class WhiteNoiseService extends Service
         detail = newDetail;
         if (state == PrivatePlaybackEngine.State.BLOCKED) {
             store.save(snapshot("blocked", newDetail));
-            new PlaybackEventRepository(this)
-                    .record(0L, "noise_blocked", "白噪音已阻断", reasonCode(newDetail), verificationLevel, muteLatencyMs);
             getSystemService(android.app.NotificationManager.class)
                     .notify(NOTIFICATION_ID, notification(newDetail));
             broadcast();
@@ -124,7 +114,7 @@ public final class WhiteNoiseService extends Service
                         new PrivatePlaybackEngine.Config(
                                 PrivatePlaybackEngine.Purpose.WHITE_NOISE,
                                 soundId,
-                                volumePercent,
+                                100,
                                 2),
                         this);
         engine.start();
@@ -179,7 +169,7 @@ public final class WhiteNoiseService extends Service
                                         1f,
                                         (System.currentTimeMillis() - started)
                                                 / (float) Math.max(1, fadeSeconds * 1_000));
-                        engine.setVolumePercent(Math.round(volumePercent * (1f - progress)));
+                        engine.setVolumePercent(Math.round(100f * (1f - progress)));
                         detail = "定时渐隐中";
                         store.save(snapshot("fading", detail));
                         broadcast();
@@ -197,16 +187,8 @@ public final class WhiteNoiseService extends Service
             engine.release();
             engine = null;
         }
-        if (!discardWithoutHistory) {
-            new PlaybackEventRepository(this)
-                    .record(0L, "noise_completed", reason, "", "", -1L);
-        }
         detail = reason;
-        if (discardWithoutHistory) {
-            store.clear();
-        } else {
-            store.save(snapshot("stopped", detail));
-        }
+        store.save(snapshot("stopped", detail));
         completed = true;
         broadcast();
         stopForeground(STOP_FOREGROUND_REMOVE);
@@ -253,7 +235,7 @@ public final class WhiteNoiseService extends Service
 
     private NoiseSessionStore.Snapshot snapshot(String state, String text) {
         return new NoiseSessionStore.Snapshot(
-                state, soundId, volumePercent, endsAtEpochMs, fadeSeconds, text);
+                state, soundId, endsAtEpochMs, fadeSeconds, text);
     }
 
     private void broadcast() {
@@ -266,16 +248,8 @@ public final class WhiteNoiseService extends Service
         return Math.max(min, Math.min(max, value));
     }
 
-    private static String reasonCode(String value) {
-        int separator = value == null ? -1 : value.indexOf(" · ");
-        return separator > 0 ? value.substring(0, separator) : "";
-    }
-
     public static String soundLabel(String id) {
-        if ("pink".equals(id)) return "粉红噪音";
-        if ("ocean".equals(id)) return "远海";
-        if ("campfire".equals(id)) return "篝火";
-        return "细雨";
+        return SleepSoundCatalog.label(id);
     }
 
     @Override
@@ -285,10 +259,8 @@ public final class WhiteNoiseService extends Service
         PrivatePlaybackEngine current = engine;
         engine = null;
         if (current != null) current.release();
-        if (!completed && !discardWithoutHistory && store != null) {
-            new PlaybackEventRepository(this)
-                    .record(0L, "noise_service_ended", "系统结束了白噪音服务", "SERVICE_DESTROYED", "", -1L);
-            detail = "系统结束了白噪音服务";
+        if (!completed && store != null) {
+            detail = "系统结束了助眠声服务";
             store.save(snapshot("stopped", detail));
             broadcast();
         }

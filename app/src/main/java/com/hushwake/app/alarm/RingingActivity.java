@@ -123,8 +123,8 @@ public final class RingingActivity extends Activity {
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, dp(58));
         params.topMargin = dp(12);
         snooze.setLayoutParams(params);
-        snooze.setVisibility(alarm != null && alarm.snoozeMinutes() > 0 ? android.view.View.VISIBLE : android.view.View.GONE);
-        snooze.setText(alarm == null ? "稍后提醒" : "稍后 " + alarm.snoozeMinutes() + " 分钟");
+        snooze.setVisibility(alarm != null ? android.view.View.VISIBLE : android.view.View.GONE);
+        snooze.setText("稍后 " + UnifiedAlarmPolicy.SNOOZE_MINUTES + " 分钟");
         snooze.setOnClickListener(v -> send(ACTION(AlarmRingingService.ACTION_SNOOZE)));
         root.addView(snooze);
         TextView privacy = label("智能输出：无耳机时正常外放；检测到耳机时只允许已验证的耳机路径。", 12, Color.rgb(126, 145, 136), Typeface.DEFAULT);
