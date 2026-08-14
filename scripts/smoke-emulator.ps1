@@ -104,6 +104,12 @@ Tap-UiText "闹钟"
 Assert-UiText "不同于普通闹钟：悄醒只用媒体音播放，跟随手机媒体音量；连接耳机后只走已验证耳机，断连也不会转到扬声器。"
 Tap-UiText "+  新建闹钟"
 Assert-UiText "新闹钟"
+Assert-UiText "唤醒时间"
+Tap-UiText "调整  ›"
+Assert-UiText "设置唤醒时间"
+Assert-UiText "15 分钟后"
+Tap-UiText "30 分钟后"
+Tap-UiText "完成"
 Invoke-Adb -Arguments @("shell", "input", "swipe", "540", "2050", "540", "450", "500") | Out-Null
 Start-Sleep -Milliseconds 500
 Assert-UiText "铃声库"
@@ -117,4 +123,4 @@ if (-not $appProcessId -or $crashLog -match "Process: $([regex]::Escape($package
     throw "HushWake smoke test found a crash or missing process`n$crashLog"
 }
 
-Write-Output "PASS: onboarding, product promise, six-sound libraries, single live timer, adjacent playback controls, and alarm editor are alive with PID $appProcessId"
+Write-Output "PASS: onboarding, product promise, six-sound libraries, sleep controls, alarm time wheels, and editor are alive with PID $appProcessId"

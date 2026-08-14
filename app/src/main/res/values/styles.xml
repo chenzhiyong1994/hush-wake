@@ -5,12 +5,20 @@
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:statusBarColor">#09110F</item>
         <item name="android:navigationBarColor">#09110F</item>
-        <item name="android:colorAccent">#E9FF70</item>
+        <item name="android:colorAccent">#F6BF6F</item>
+        <item name="android:alertDialogTheme">@style/Theme.HushWake.Dialog</item>
         <item name="android:windowBackground">#09110F</item>
         <item name="android:textColorPrimary">#F2F7ED</item>
         <item name="android:textColorSecondary">#A8B8B1</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowLightNavigationBar">false</item>
         <item name="android:windowActionModeOverlay">true</item>
+    </style>
+
+    <style name="Theme.HushWake.Dialog" parent="android:style/Theme.Material.Dialog.Alert">
+        <item name="android:windowBackground">#11191A</item>
+        <item name="android:colorAccent">#F6BF6F</item>
+        <item name="android:textColorPrimary">#F5F2E9</item>
+        <item name="android:textColorSecondary">#94A4A0</item>
     </style>
 </resources>

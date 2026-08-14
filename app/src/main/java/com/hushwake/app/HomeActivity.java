@@ -326,6 +326,17 @@ public final class HomeActivity extends Activity {
                             Ui.medium());
             nextView.setPadding(0, Ui.dp(this, 9), 0, 0);
             card.addView(nextView);
+            if (new AlarmScheduler(this).canScheduleExact()) {
+                TextView backgroundReady =
+                        Ui.text(
+                                this,
+                                "无需保持打开 · Android 会在后台唤醒",
+                                12,
+                                Ui.MUTED,
+                                Typeface.DEFAULT);
+                backgroundReady.setPadding(0, Ui.dp(this, 4), 0, 0);
+                card.addView(backgroundReady);
+            }
         } else {
             TextView off = Ui.text(this, "已关闭", 12, Ui.MUTED, Ui.medium());
             off.setPadding(0, Ui.dp(this, 9), 0, 0);

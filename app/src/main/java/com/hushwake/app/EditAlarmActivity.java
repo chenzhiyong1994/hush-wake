@@ -2,7 +2,6 @@ package com.hushwake.app;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.TimePickerDialog;
 import android.content.Intent;
 import android.graphics.Typeface;
 import android.media.AudioManager;
@@ -16,6 +15,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
+import android.widget.NumberPicker;
 import android.widget.ScrollView;
 import android.widget.Switch;
 import android.widget.TextView;
@@ -27,6 +27,7 @@ import com.hushwake.app.alarm.AlarmSessionStore;
 import com.hushwake.app.alarm.AlarmSoundCatalog;
 import com.hushwake.app.alarm.AlarmStopPolicy;
 import com.hushwake.app.alarm.UnifiedAlarmPolicy;
+import com.hushwake.app.alarm.AlarmTimeSelection;
 import com.hushwake.app.audio.PrivatePlaybackEngine;
 import com.hushwake.app.data.AlarmRepository;
 import com.hushwake.app.data.AppPreferences;
@@ -43,7 +44,7 @@ public final class EditAlarmActivity extends Activity {
     private Alarm existing;
     private int hour;
     private int minute;
-    private Button timeButton;
+    private TextView timeValue;
     private EditText label;
     private final TextView[] weekdayChoices = new TextView[7];
     private int repeatMask;
@@ -59,9 +60,9 @@ public final class EditAlarmActivity extends Activity {
         repository = new AlarmRepository(this);
         long id = getIntent().getLongExtra(EXTRA_ALARM_ID, 0L);
         existing = id == 0L ? null : repository.find(id);
-        LocalTime suggested = LocalTime.now().plusHours(1).withSecond(0).withNano(0);
-        hour = existing == null ? suggested.getHour() : existing.hour();
-        minute = existing == null ? suggested.getMinute() : existing.minute();
+        AlarmTimeSelection suggested = AlarmTimeSelection.suggested(LocalTime.now());
+        hour = existing == null ? suggested.hour() : existing.hour();
+        minute = existing == null ? suggested.minute() : existing.minute();
         configureWindow();
         setContentView(buildScreen());
         bind(existing);
@@ -91,24 +92,24 @@ public final class EditAlarmActivity extends Activity {
         title.setPadding(0, Ui.dp(this, 10), 0, Ui.dp(this, 22));
         root.addView(title);
 
-        timeButton = Ui.button(this, "00:00", false);
-        timeButton.setTextSize(48);
-        timeButton.setTypeface(Ui.display());
-        timeButton.setMinHeight(Ui.dp(this, 112));
-        timeButton.setOnClickListener(
-                v ->
-                        new TimePickerDialog(
-                                        this,
-                                        (picker, h, m) -> {
-                                            hour = h;
-                                            minute = m;
-                                            updateTime();
-                                        },
-                                        hour,
-                                        minute,
-                                        true)
-                                .show());
-        root.addView(timeButton);
+        LinearLayout timeCard = Ui.card(this, Ui.RAISED);
+        timeCard.setPadding(
+                Ui.dp(this, 20), Ui.dp(this, 16), Ui.dp(this, 20), Ui.dp(this, 16));
+        TextView timeLabel = Ui.text(this, "唤醒时间", 12, Ui.ACID, Ui.medium());
+        timeLabel.setLetterSpacing(0.08f);
+        timeCard.addView(timeLabel);
+        LinearLayout timeRow = new LinearLayout(this);
+        timeRow.setGravity(Gravity.CENTER_VERTICAL);
+        timeValue = Ui.text(this, "00:00", 50, Ui.PAPER, Ui.display());
+        timeRow.addView(timeValue, new LinearLayout.LayoutParams(0, -2, 1));
+        TextView change = Ui.text(this, "调整  ›", 14, Ui.ACID, Typeface.DEFAULT_BOLD);
+        timeRow.addView(change);
+        timeCard.addView(timeRow);
+        TextView timeHint =
+                Ui.text(this, "上下滚动小时与分钟，也可以快速设为稍后", 12, Ui.MUTED, Typeface.DEFAULT);
+        timeCard.addView(timeHint);
+        timeCard.setOnClickListener(v -> showTimePicker());
+        root.addView(timeCard);
         root.addView(Ui.space(this, 14));
 
         LinearLayout schedule = Ui.card(this, Ui.PANEL);
@@ -295,7 +296,127 @@ public final class EditAlarmActivity extends Activity {
     }
 
     private void updateTime() {
-        timeButton.setText(String.format(java.util.Locale.ROOT, "%02d:%02d", hour, minute));
+        timeValue.setText(AlarmTimeSelection.of(hour, minute).display());
+    }
+
+    private void showTimePicker() {
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(
+                Ui.dp(this, 22), Ui.dp(this, 4), Ui.dp(this, 22), Ui.dp(this, 10));
+
+        TextView guidance =
+                Ui.text(this, "上下滑动数字，或选择一个常用时段", 13, Ui.MUTED, Typeface.DEFAULT);
+        guidance.setPadding(0, 0, 0, Ui.dp(this, 12));
+        content.addView(guidance);
+
+        TextView preview =
+                Ui.text(
+                        this,
+                        AlarmTimeSelection.of(hour, minute).display(),
+                        38,
+                        Ui.ACID,
+                        Ui.display());
+        preview.setGravity(Gravity.CENTER);
+        preview.setPadding(0, 0, 0, Ui.dp(this, 8));
+        content.addView(preview);
+
+        NumberPicker hourPicker = timeWheel(0, 23, hour);
+        NumberPicker minutePicker = timeWheel(0, 59, minute);
+        NumberPicker.OnValueChangeListener refresh =
+                (picker, oldValue, newValue) ->
+                        preview.setText(
+                                AlarmTimeSelection.of(
+                                                hourPicker.getValue(), minutePicker.getValue())
+                                        .display());
+        hourPicker.setOnValueChangedListener(refresh);
+        minutePicker.setOnValueChangedListener(refresh);
+
+        LinearLayout wheels = new LinearLayout(this);
+        wheels.setGravity(Gravity.CENTER);
+        wheels.addView(timeWheelColumn("小时", hourPicker), new LinearLayout.LayoutParams(0, -2, 1));
+        TextView colon = Ui.text(this, ":", 30, Ui.MUTED, Ui.display());
+        colon.setGravity(Gravity.CENTER);
+        wheels.addView(colon, new LinearLayout.LayoutParams(Ui.dp(this, 28), -1));
+        wheels.addView(
+                timeWheelColumn("分钟", minutePicker), new LinearLayout.LayoutParams(0, -2, 1));
+        content.addView(wheels);
+
+        TextView quickLabel = Ui.text(this, "快速设置", 12, Ui.MUTED, Ui.medium());
+        quickLabel.setPadding(0, Ui.dp(this, 12), 0, Ui.dp(this, 7));
+        content.addView(quickLabel);
+        LinearLayout quickRow = new LinearLayout(this);
+        quickRow.setOrientation(LinearLayout.HORIZONTAL);
+        int[] offsets = {15, 30, 60};
+        String[] labels = {"15 分钟后", "30 分钟后", "1 小时后"};
+        for (int i = 0; i < offsets.length; i++) {
+            TextView choice = Ui.choice(this, labels[i], false);
+            int offset = offsets[i];
+            choice.setOnClickListener(
+                    v -> {
+                        AlarmTimeSelection quick =
+                                AlarmTimeSelection.after(LocalTime.now(), offset);
+                        hourPicker.setValue(quick.hour());
+                        minutePicker.setValue(quick.minute());
+                        preview.setText(quick.display());
+                    });
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, -2, 1);
+            if (i > 0) params.leftMargin = Ui.dp(this, 6);
+            quickRow.addView(choice, params);
+        }
+        content.addView(quickRow);
+
+        AlertDialog dialog =
+                new AlertDialog.Builder(this)
+                        .setTitle("设置唤醒时间")
+                        .setView(content)
+                        .setNegativeButton("取消", null)
+                        .setPositiveButton(
+                                "完成",
+                                (ignored, which) -> {
+                                    hour = hourPicker.getValue();
+                                    minute = minutePicker.getValue();
+                                    updateTime();
+                                })
+                        .create();
+        dialog.setOnShowListener(
+                ignored -> {
+                    if (dialog.getWindow() != null) {
+                        dialog.getWindow()
+                                .setBackgroundDrawable(Ui.round(this, Ui.PANEL, 24, Ui.LINE));
+                    }
+                    dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(Ui.ACID);
+                    dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(Ui.MUTED);
+                });
+        dialog.show();
+    }
+
+    private NumberPicker timeWheel(int min, int max, int value) {
+        NumberPicker picker = new NumberPicker(this);
+        picker.setMinValue(min);
+        picker.setMaxValue(max);
+        picker.setValue(value);
+        picker.setWrapSelectorWheel(true);
+        picker.setDescendantFocusability(NumberPicker.FOCUS_BLOCK_DESCENDANTS);
+        picker.setTextColor(Ui.PAPER);
+        String[] displayed = new String[max - min + 1];
+        for (int i = 0; i < displayed.length; i++) {
+            displayed[i] = String.format(java.util.Locale.ROOT, "%02d", min + i);
+        }
+        picker.setDisplayedValues(displayed);
+        picker.setBackground(Ui.round(this, Ui.RAISED, 18, Ui.LINE));
+        return picker;
+    }
+
+    private LinearLayout timeWheelColumn(String label, NumberPicker picker) {
+        LinearLayout column = new LinearLayout(this);
+        column.setOrientation(LinearLayout.VERTICAL);
+        TextView heading = Ui.text(this, label, 12, Ui.MUTED, Ui.medium());
+        heading.setGravity(Gravity.CENTER);
+        heading.setPadding(0, 0, 0, Ui.dp(this, 5));
+        column.addView(heading);
+        column.addView(picker, new LinearLayout.LayoutParams(-1, Ui.dp(this, 132)));
+        return column;
     }
 
     private void selectSound(String soundId, boolean userInitiated) {
