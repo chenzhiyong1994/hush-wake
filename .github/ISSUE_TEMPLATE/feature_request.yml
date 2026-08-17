@@ -1,0 +1,25 @@
+name: 功能建议
+description: 提出新的用户场景或聚焦改进
+title: "[Idea] "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 你想解决什么问题？
+      description: 请先描述场景和影响，不必预设实现。
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 你的建议
+    validations:
+      required: true
+  - type: textarea
+    id: safety
+    attributes:
+      label: 对音频路由、闹钟可靠性或隐私的影响
+      description: 若不涉及，请写“不涉及”。
+    validations:
+      required: true

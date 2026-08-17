@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 私下报告安全漏洞
+    url: https://github.com/chenzhiyong1994/hush-wake/security/advisories/new
+    about: 请勿在公开 Issue 中发布漏洞细节、凭据或隐私数据。

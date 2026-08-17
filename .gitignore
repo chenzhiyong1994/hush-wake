@@ -4,3 +4,27 @@ local.properties
 **/build/
 captures/
 *.iml
+
+# Local secrets and signing material
+.env
+.env.*
+!.env.example
+secrets.properties
+keystore.properties
+signing.properties
+google-services.json
+service-account*.json
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+
+# Local artifacts and diagnostics
+*.apk
+*.aab
+*.log
+*.hprof
+.DS_Store
+Thumbs.db
