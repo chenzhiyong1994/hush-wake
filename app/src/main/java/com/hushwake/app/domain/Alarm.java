@@ -111,6 +111,39 @@ public final class Alarm {
                 nowEpochMs);
     }
 
+    public static Alarm savedFromEditor(
+            Alarm existing,
+            int hour,
+            int minute,
+            int repeatMask,
+            String label,
+            String soundId,
+            long nowEpochMs) {
+        long id = existing == null ? 0L : existing.id();
+        long createdAt = existing == null ? nowEpochMs : existing.createdAtEpochMs();
+        long oneTimeDate =
+                repeatMask == 0
+                        ? nextOneTimeEpochDay(
+                                hour, minute, java.time.Instant.ofEpochMilli(nowEpochMs))
+                        : Long.MIN_VALUE;
+        return new Alarm(
+                id,
+                hour,
+                minute,
+                repeatMask,
+                label,
+                soundId,
+                UnifiedAlarmPolicy.APP_GAIN_PERCENT,
+                UnifiedAlarmPolicy.FADE_IN_SECONDS,
+                UnifiedAlarmPolicy.VIBRATE_WHEN_BLOCKED,
+                UnifiedAlarmPolicy.SNOOZE_MINUTES,
+                UnifiedAlarmPolicy.MAX_RING_SECONDS,
+                true,
+                oneTimeDate,
+                createdAt,
+                nowEpochMs);
+    }
+
     public static int weekdayBit(int isoDayOfWeek) {
         if (isoDayOfWeek < 1 || isoDayOfWeek > 7) {
             throw new IllegalArgumentException("ISO weekday must be 1 through 7");

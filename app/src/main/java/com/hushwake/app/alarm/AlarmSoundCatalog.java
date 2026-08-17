@@ -9,12 +9,12 @@ public final class AlarmSoundCatalog {
 
     private static final List<Item> ITEMS =
             List.of(
-                    new Item("soft_chime", "柔和钟铃", "圆润 · 不突兀", "铃", R.raw.alarm_soft_bell),
-                    new Item("bright_chime", "清亮钟铃", "通透 · 易辨识", "清", R.raw.alarm_clear_bell),
-                    new Item("horizon", "晨光风铃", "舒展 · 渐醒", "风", R.raw.alarm_wind_chimes),
-                    new Item("deep_bell", "低音钟铃", "沉稳 · 温和", "钟", R.raw.alarm_deep_bell),
-                    new Item("wind_chimes", "庭院风铃", "自然 · 空灵", "庭", R.raw.alarm_garden_chimes),
-                    new Item("morning_birds", "清晨鸟鸣", "自然 · 轻唤", "晨", R.raw.alarm_morning_birds));
+                    new Item("soft_chime", "晨光和弦", "柔和 · 持续", "晨", R.raw.alarm_soft_bell),
+                    new Item("bright_chime", "清醒节拍", "清晰 · 有律动", "醒", R.raw.alarm_clear_bell),
+                    new Item("horizon", "柔光旋律", "舒展 · 渐进", "光", R.raw.alarm_wind_chimes),
+                    new Item("deep_bell", "深稳脉冲", "沉稳 · 易辨识", "稳", R.raw.alarm_deep_bell),
+                    new Item("wind_chimes", "霓虹晨铃", "丰富 · 持续", "霓", R.raw.alarm_garden_chimes),
+                    new Item("morning_birds", "清脆回响", "明亮 · 轻快", "清", R.raw.alarm_morning_birds));
 
     private AlarmSoundCatalog() {}
 

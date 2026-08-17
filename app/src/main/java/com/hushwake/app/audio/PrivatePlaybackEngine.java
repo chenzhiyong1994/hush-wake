@@ -44,6 +44,10 @@ public final class PrivatePlaybackEngine {
                 throw new IllegalArgumentException("Invalid volume or fade duration");
             }
         }
+
+        public boolean continuous() {
+            return true;
+        }
     }
 
     public interface Listener {
@@ -219,12 +223,24 @@ public final class PrivatePlaybackEngine {
             mediaPlayer.setAudioAttributes(audioAttributes());
             mediaPlayer.setDataSource(
                     source.getFileDescriptor(), source.getStartOffset(), source.getLength());
-            mediaPlayer.setLooping(true);
+            mediaPlayer.setLooping(config.continuous());
             mediaPlayer.setVolume(0f, 0f);
             mediaPlayer.setOnErrorListener(
                     (player, what, extra) -> {
-                        block("PLAYER_ERROR", "助眠录音播放失败");
+                        block("PLAYER_ERROR", "音频素材播放失败");
                         return true;
+                    });
+            mediaPlayer.setOnCompletionListener(
+                    player -> {
+                        if (!config.continuous()
+                                || state == State.BLOCKED
+                                || state == State.STOPPED) return;
+                        try {
+                            player.seekTo(0);
+                            player.start();
+                        } catch (RuntimeException error) {
+                            block("PLAYER_RESTART_ERROR", "连续播放重启失败");
+                        }
                     });
             if (outputMode == SmartOutputPolicy.Mode.PRIVATE_HEADSET
                     && !mediaPlayer.setPreferredDevice(targetDevice)) {
@@ -289,8 +305,8 @@ public final class PrivatePlaybackEngine {
                             ? "强验证"
                             : "兼容验证";
             state = State.AUDIBLE;
-            notifyState("仅耳机播放中 · " + evaluation.summary());
             startFadeIn();
+            notifyState("仅耳机播放中 · " + evaluation.summary());
         }
     }
 
@@ -299,6 +315,11 @@ public final class PrivatePlaybackEngine {
         final long started = SystemClock.elapsedRealtime();
         final long durationMs = config.fadeInSeconds() * 1_000L;
         final float target = config.volumePercent() / 100f;
+        if (config.purpose() == Purpose.ALARM) {
+            setPlaybackVolume(
+                    PlaybackGainEnvelope.alarmGain(
+                            config.volumePercent(), config.fadeInSeconds(), 0L));
+        }
         Runnable fade =
                 new Runnable() {
                     @Override
@@ -313,7 +334,14 @@ public final class PrivatePlaybackEngine {
                                                 1f,
                                                 (SystemClock.elapsedRealtime() - started)
                                                         / (float) durationMs);
-                        setPlaybackVolume(target * progress);
+                        float gain =
+                                config.purpose() == Purpose.ALARM
+                                        ? PlaybackGainEnvelope.alarmGain(
+                                                config.volumePercent(),
+                                                config.fadeInSeconds(),
+                                                SystemClock.elapsedRealtime() - started)
+                                        : target * progress;
+                        setPlaybackVolume(gain);
                         if (progress < 1f) mainHandler.postDelayed(this, 50L);
                     }
                 };
@@ -398,8 +426,8 @@ public final class PrivatePlaybackEngine {
             latencyTracker.onRouteVerifiedSafe();
             verificationLevel = "智能外放";
             state = State.AUDIBLE;
-            notifyState("智能输出 · 当前使用系统媒体外放");
             startFadeIn();
+            notifyState("智能输出 · 当前使用系统媒体外放");
             return;
         }
         if (next != SmartOutputPolicy.Mode.PRIVATE_HEADSET) {

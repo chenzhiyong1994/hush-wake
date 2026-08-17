@@ -17,7 +17,6 @@ import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.NumberPicker;
 import android.widget.ScrollView;
-import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 import com.hushwake.app.alarm.AlarmPreviewSelection;
@@ -26,7 +25,6 @@ import com.hushwake.app.alarm.AlarmScheduler;
 import com.hushwake.app.alarm.AlarmSessionStore;
 import com.hushwake.app.alarm.AlarmSoundCatalog;
 import com.hushwake.app.alarm.AlarmStopPolicy;
-import com.hushwake.app.alarm.UnifiedAlarmPolicy;
 import com.hushwake.app.alarm.AlarmTimeSelection;
 import com.hushwake.app.audio.PrivatePlaybackEngine;
 import com.hushwake.app.data.AlarmRepository;
@@ -52,7 +50,6 @@ public final class EditAlarmActivity extends Activity {
     private String selectedSoundId = "soft_chime";
     private final Handler previewHandler = new Handler(Looper.getMainLooper());
     private PrivatePlaybackEngine previewEngine;
-    private Switch enabled;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -140,13 +137,6 @@ public final class EditAlarmActivity extends Activity {
             weekdayChoices[i] = choice;
         }
         schedule.addView(days);
-        enabled = new Switch(this);
-        enabled.setText("启用这个闹钟");
-        enabled.setTextColor(Ui.PAPER);
-        enabled.setTextSize(14);
-        enabled.setPadding(0, Ui.dp(this, 14), 0, 0);
-        enabled.setThumbTintList(android.content.res.ColorStateList.valueOf(Ui.ACID));
-        schedule.addView(enabled);
         root.addView(schedule);
         root.addView(Ui.space(this, 14));
 
@@ -209,7 +199,6 @@ public final class EditAlarmActivity extends Activity {
         repeatMask = source.repeatMask();
         updateWeekdayChoices();
         selectSound(source.soundId(), false);
-        enabled.setChecked(source.enabled());
     }
 
     private void save() {
@@ -219,28 +208,14 @@ public final class EditAlarmActivity extends Activity {
             return;
         }
         long now = System.currentTimeMillis();
-        long id = existing == null ? 0L : existing.id();
-        long created = existing == null ? now : existing.createdAtEpochMs();
-        long oneTimeDate =
-                repeatMask == 0
-                        ? Alarm.nextOneTimeEpochDay(hour, minute, java.time.Instant.ofEpochMilli(now))
-                        : Long.MIN_VALUE;
         Alarm alarm =
-                new Alarm(
-                        id,
+                Alarm.savedFromEditor(
+                        existing,
                         hour,
                         minute,
                         repeatMask,
                         alarmLabel,
                         selectedSoundId,
-                        UnifiedAlarmPolicy.APP_GAIN_PERCENT,
-                        UnifiedAlarmPolicy.FADE_IN_SECONDS,
-                        UnifiedAlarmPolicy.VIBRATE_WHEN_BLOCKED,
-                        UnifiedAlarmPolicy.SNOOZE_MINUTES,
-                        UnifiedAlarmPolicy.MAX_RING_SECONDS,
-                        enabled.isChecked(),
-                        oneTimeDate,
-                        created,
                         now);
         Alarm saved = repository.save(alarm);
         AlarmScheduler scheduler = new AlarmScheduler(this);
@@ -252,7 +227,6 @@ public final class EditAlarmActivity extends Activity {
                                         || result.result() == AlarmScheduler.Result.DISABLED
                                 ? ""
                                 : result.detail());
-        if (!saved.enabled()) stopIfRinging(saved.id());
         Toast.makeText(this, result.detail(), Toast.LENGTH_SHORT).show();
         setResult(RESULT_OK);
         finish();

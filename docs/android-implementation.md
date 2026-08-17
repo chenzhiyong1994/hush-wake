@@ -1,16 +1,16 @@
 # HushWake Android 实现与验证
 
-本文记录 `0.3.2-beta` 的工程入口；产品行为以 `hush-wake-prd.md` 为准，实体机安全验收以 `device-test-guide.md` 为准。
+本文记录 `0.3.3-beta` 的工程入口；产品行为以 `hush-wake-prd.md` 为准，实体机安全验收以 `device-test-guide.md` 为准。
 
 ## 运行结构
 
-- `HomeActivity` 只承载首次引导、“闹钟”和“助眠声”两个主页面；系统权限缺失和当前输出状态以内联卡片呈现。`EditAlarmActivity` 通过小时/分钟双滚轮和三个相对时间快捷项编辑时间，点选铃声通过短生命周期 `PrivatePlaybackEngine` 会话即时试听。
+- `HomeActivity` 只承载首次引导、“闹钟”和“助眠声”两个主页面；系统权限缺失和当前输出状态以内联卡片呈现。`EditAlarmActivity` 通过小时/分钟双滚轮和三个相对时间快捷项编辑时间，点选铃声通过短生命周期 `PrivatePlaybackEngine` 会话即时试听；保存新建或编辑结果会自动启用，启停开关只保留在列表页。
 - SQLite 只保存闹钟和当前耳机验证摘要；SharedPreferences 保存必要偏好与粗粒度当前会话状态。没有用户行为历史表，Android 备份和设备迁移均关闭。
 - `AlarmScheduler` 使用稳定 `PendingIntent` 和 `setAlarmClock()`；开机、时间/时区变化、应用升级、精确权限重新授予后重排。API 33+ 声明闹钟应用允许的 `USE_EXACT_ALARM`，API 31–32 以 `SCHEDULE_EXACT_ALARM` 兼容；发布到 Google Play 前必须完成精确闹钟用途声明。
 - `AlarmRingingService` 与 `WhiteNoiseService` 是 `mediaPlayback` 前台服务。两者共用 `PrivatePlaybackEngine`，通知频道本身无声音且不绕过勿扰。
-- 闹钟采用统一策略：系统媒体音量、100% 应用播放系数、15 秒渐强、阻断时振动、5 分钟稍后提醒、2 分钟最长响铃。旧版本保存的逐闹钟增益和处置字段不再参与播放决策。
+- 闹钟采用统一策略：系统媒体音量、路由通过后 25% 起始应用增益、15 秒渐强至 100%、阻断时振动、5 分钟稍后提醒、2 分钟最长响铃。旧版本保存的逐闹钟增益和处置字段不再参与播放决策。
 - `AlarmSessionStore` 保存当前活动闹钟 ID。主页关闭同一闹钟，或点击一次性闹钟卡片上的“立即停止”，会向服务发送带 ID 的停止命令；服务拒绝停止不匹配的闹钟。
-- 闹铃与助眠声均通过 `MediaPlayer` 播放 APK 内的真实录音，素材及许可见 `audio-credits.md`；不再生成合成音。`ACTION_SWITCH_SOUND` 在同一服务会话内重建播放器，保留原结束时间、渐隐配置和暂停状态。
+- 闹铃与助眠声均通过 `MediaPlayer` 播放 APK 内的许可清晰素材，来源见 `audio-credits.md`；闹铃使用 AOSP 专业素材并持续循环，不再由应用实时合成。`ACTION_SWITCH_SOUND` 在同一服务会话内重建播放器，保留原结束时间、渐隐配置和暂停状态。
 - `SleepSoundCatalog` 与 `AlarmSoundCatalog` 是声音库的单一入口；页面由目录生成横向选择卡片。助眠声播放时只展示实时剩余时间，预设时长只在未播放状态展示。
 - `PrivatePlaybackEngine` 根据当前候选输出选择智能外放或耳机守卫。无耳机时允许系统媒体外放；检测到唯一耳机时，只有具体耳机哈希、有效人工测试和本次实际路由全部通过后才解除双层静音。外放期接入耳机会先静音并转入耳机验证；耳机目标移除、路由不匹配、多候选、超时或焦点丢失会结束会话，不降级回扬声器。
 
@@ -24,6 +24,7 @@
 
 ```powershell
 .\gradlew.bat :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+.\scripts\verify-alarm-audio.ps1
 .\scripts\verify-app-launch.ps1
 .\scripts\smoke-emulator.ps1
 .\scripts\verify-background-alarm.ps1

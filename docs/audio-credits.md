@@ -1,6 +1,6 @@
 # 音频来源与许可
 
-HushWake 的闹铃与助眠声只使用可离线再分发且许可清楚的真实录音。应用不会联网拉取音频，也不再生成合成闹铃。
+HushWake 的闹铃与助眠声只使用可离线再分发且许可清楚的素材。应用不会联网拉取音频，也不再实时生成合成闹铃。
 
 ## 助眠声
 
@@ -17,13 +17,13 @@ HushWake 的闹铃与助眠声只使用可离线再分发且许可清楚的真�
 
 | 应用内名称 | 文件 | 来源 | 作者 | 许可 |
 | --- | --- | --- | --- | --- |
-| 柔和钟铃 | `alarm_soft_bell.ogg` | [Bell dings/chimes：bell_ding2.wav](https://opengameart.org/content/bell-dingschimes) | PWL | CC0 1.0 |
-| 清亮钟铃 | `alarm_clear_bell.ogg` | [Bell dings/chimes：bell_ding4.wav](https://opengameart.org/content/bell-dingschimes) | PWL | CC0 1.0 |
-| 晨光风铃 | `alarm_wind_chimes.ogg` | [Wind Chimes：wind_chimes_loop_1.ogg](https://opengameart.org/content/wind-chimes) | pmiller | CC0 1.0 |
-| 低音钟铃 | `alarm_deep_bell.ogg` | [Bell dings/chimes：bell_ding1.wav](https://opengameart.org/content/bell-dingschimes) | PWL | CC0 1.0 |
-| 庭院风铃 | `alarm_garden_chimes.ogg` | [UI Sound Effects：chimes.ogg](https://opengameart.org/content/ui-sound-effects-button-clicks-user-feedback-notifications) | Robin Lamb，基于 VCSL / VSCO 2 CE 公版采样 | CC0 1.0 |
-| 清晨鸟鸣 | `alarm_morning_birds.ogg` | [AMB Morning Sounds (Perfect Loop)](https://opengameart.org/content/amb-morning-sounds-perfect-loop) | Kresiek The Furry | CC0 1.0 |
+| 晨光和弦 | `alarm_soft_bell.ogg` | [Argon.ogg](https://android.googlesource.com/platform/frameworks/base/+/1cdfff555f4a21f71ccc978290e2e212e2f8b168/data/sounds/alarms/ogg/Argon.ogg) | Android Open Source Project | Apache License 2.0 |
+| 清醒节拍 | `alarm_clear_bell.ogg` | [Carbon.ogg](https://android.googlesource.com/platform/frameworks/base/+/1cdfff555f4a21f71ccc978290e2e212e2f8b168/data/sounds/alarms/ogg/Carbon.ogg) | Android Open Source Project | Apache License 2.0 |
+| 柔光旋律 | `alarm_wind_chimes.ogg` | [Copernicium.ogg](https://android.googlesource.com/platform/frameworks/base/+/1cdfff555f4a21f71ccc978290e2e212e2f8b168/data/sounds/alarms/ogg/Copernicium.ogg) | Android Open Source Project | Apache License 2.0 |
+| 深稳脉冲 | `alarm_deep_bell.ogg` | [Curium.ogg](https://android.googlesource.com/platform/frameworks/base/+/1cdfff555f4a21f71ccc978290e2e212e2f8b168/data/sounds/alarms/ogg/Curium.ogg) | Android Open Source Project | Apache License 2.0 |
+| 霓虹晨铃 | `alarm_garden_chimes.ogg` | [Neon.ogg](https://android.googlesource.com/platform/frameworks/base/+/1cdfff555f4a21f71ccc978290e2e212e2f8b168/data/sounds/alarms/ogg/Neon.ogg) | Android Open Source Project | Apache License 2.0 |
+| 清脆回响 | `alarm_morning_birds.ogg` | [Platinum.ogg](https://android.googlesource.com/platform/frameworks/base/+/1cdfff555f4a21f71ccc978290e2e212e2f8b168/data/sounds/alarms/ogg/Platinum.ogg) | Android Open Source Project | Apache License 2.0 |
 
-`gentle_stream.ogg` 的再分发保留上述作者、标题、来源和许可说明。CC0 音频无需署名，但仍保留来源以便审查。
+`gentle_stream.ogg` 的再分发保留上述作者、标题、来源和许可说明。AOSP 闹铃素材的目录许可声明见同一提交的 [Android.bp](https://android.googlesource.com/platform/frameworks/base/+/1cdfff555f4a21f71ccc978290e2e212e2f8b168/data/sounds/Android.bp)，许可正文随仓库保存在 [`licenses/Apache-2.0.txt`](licenses/Apache-2.0.txt)；CC0 音频无需署名，但仍保留来源以便审查。
 
-为控制安装包体积，闹铃素材只做截短、渐出、响度归一化与 OGG 转码；不改变作品许可。新增或替换音频时必须同时记录原始页面、作者、许可和应用内文件名；许可不明、仅供个人使用或禁止商业使用的资源不得进入 APK。
+闹铃素材只做响度归一化与 48 kHz OGG 转码，不改变作品许可；持续播放由应用播放器负责。新增或替换音频时必须同时记录固定版本来源、作者、许可和应用内文件名；许可不明、仅供个人使用或禁止商业使用的资源不得进入 APK。

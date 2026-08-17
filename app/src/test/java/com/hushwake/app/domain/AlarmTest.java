@@ -65,4 +65,19 @@ public final class AlarmTest {
         assertEquals(5, alarm.snoozeMinutes());
         assertEquals(120, alarm.maxRingSeconds());
     }
+
+    @Test
+    public void savingEditorChangesAlwaysEnablesTheAlarm() {
+        long now = 1_700_000_000_000L;
+        Alarm disabled = Alarm.newDefault(7, 30, now).withId(42L).withEnabled(false, now + 1L);
+
+        Alarm saved =
+                Alarm.savedFromEditor(
+                        disabled, 8, 15, 0, "起床", "bright_chime", now + 2L);
+
+        assertEquals(42L, saved.id());
+        assertEquals(8, saved.hour());
+        assertEquals(15, saved.minute());
+        assertTrue(saved.enabled());
+    }
 }

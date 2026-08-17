@@ -6,7 +6,7 @@ import org.junit.Test;
 
 public final class AlarmSoundCatalogTest {
     @Test
-    public void curatedLibraryContainsSixRecordedSounds() {
+    public void curatedLibraryContainsSixLicensedAlarmSounds() {
         assertEquals(6, AlarmSoundCatalog.all().size());
         assertEquals("deep_bell", AlarmSoundCatalog.normalizeId("deep_bell"));
         assertEquals("wind_chimes", AlarmSoundCatalog.normalizeId("wind_chimes"));
