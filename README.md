@@ -1,7 +1,7 @@
-# HushWake（悄醒）
+# HushWake
 
 <p align="center">
-  <img src="docs/assets/hushwake-hero.svg" alt="HushWake 悄醒：声音，去往正确的地方" width="100%">
+  <img src="docs/assets/hushwake-hero.svg" alt="HushWake: sound, routed where it belongs" width="100%">
 </p>
 
 <p align="center">
@@ -12,64 +12,68 @@
 </p>
 
 <p align="center">
-  安全优先的 Android 智能输出闹钟与助眠声
+  <strong>English</strong>
   ·
-  <a href="docs/README.en.md">English</a>
+  <a href="README.zh-CN.md">简体中文</a>
 </p>
 
-闹钟很擅长叫醒一个人，却也常常顺便叫醒一屋子人。
+<p align="center">
+  A safety-first Android alarm and sleep-sound app
+</p>
 
-HushWake 想解决的是一个看似简单、实际很容易出错的问题：**没有耳机时正常外放；检测到耳机时，只在确认当前实际音频路径安全后播放。** 如果耳机断开、路由改变或系统给出的证据不足，应用会先静音再停止，而不是为了“继续有声”悄悄切回扬声器。
+Alarms are very good at waking one person—and often everyone else in the room.
+
+HushWake tackles a deceptively simple problem: **use normal speaker output when no headphones are present, but play through headphones only after the current audio route has been verified as safe.** If the headphones disconnect, the route changes, or Android cannot provide enough evidence, HushWake mutes first and stops instead of silently falling back to a speaker.
 
 > [!IMPORTANT]
-> `0.3.3-beta` 已具备完整核心功能，但仍是公开源码的功能测试版，不是公开稳定发行版。真实耳机的零扬声器串音验证仍是发布门禁；源码可构建不等于所有设备都已安全通过。
+> `0.3.3-beta` contains the complete core feature set, but it remains a functional beta rather than a publicly validated stable release. Real-device, zero-speaker-leakage testing is still a release gate; a successful build does not prove that every device is safe.
 
-## 为什么做 HushWake
+## Why HushWake
 
-午休、通勤或合住场景里，用户既希望被可靠叫醒，也不希望声音突然从手机扬声器放出来。Android 提供了“首选输出设备”等能力，但首选并不等于已经验证的实际唯一输出；蓝牙断连和系统重路由之间还存在竞态。
+During a nap, commute, or shared living situation, people may need a reliable alarm without the risk of audio suddenly coming from the phone speaker. Android exposes concepts such as a preferred output device, but a preference is not proof of the actual and exclusive route. Bluetooth disconnects and system rerouting can also race with playback.
 
-HushWake 因此选择一条更克制的路线：
+HushWake therefore takes a deliberately conservative approach:
 
-- **失败时保持安静。** 耳机会话无法确认实际路由，就不解除应用层静音。
-- **把偏好和事实分开。** 目标设备、当前候选设备与实际路由分别检查。
-- **先静音，再停止。** 断连或路由不确定时，先把播放器增益归零，再停止和执行用户允许的振动/通知兜底。
-- **隐私默认留在本机。** 没有账号、云同步或行为上传；耳机原始名称和地址不落盘。
+- **Fail closed.** If a headphone session cannot verify its actual route, playback remains muted.
+- **Keep intent separate from evidence.** The target device, current candidates, and actual route are evaluated independently.
+- **Mute before stopping.** On disconnect or uncertainty, player gain is reduced to zero before playback stops and any user-approved vibration or notification fallback runs.
+- **Keep private data local.** There is no account, cloud sync, or behavioral upload; raw headphone names and addresses are not persisted.
 
-## 现在可以做什么
+## What works today
 
-| 能力 | 当前实现 |
+| Area | Current implementation |
 | --- | --- |
-| 闹钟 | 一次性/周重复、精确调度、开机和时间变化后重排、锁屏入口、高优先级通知、停止、一次稍后提醒、最长响铃 |
-| 智能输出 | 无耳机时允许系统媒体外放；检测到唯一耳机时进入路由守卫，不安全则阻断 |
-| 耳机验证 | 双层静音起播、本机人工低增益确认、实际路由复验、断连/焦点丢失/多候选时停止 |
-| 助眠声 | 6 种真实环境录音，支持暂停、通知控制、15–60 分钟定时、渐隐和不重置计时的即时换声 |
-| 闹铃声音 | 6 种 AOSP 闹铃素材，编辑页即时试听，正式响铃持续循环 |
-| 数据 | 本地 SQLite / SharedPreferences；Android 备份与设备迁移关闭；无网络和账号层 |
+| Alarms | One-time and weekly schedules, exact scheduling, reboot/time-change recovery, lock-screen entry, high-priority notification, stop, one snooze, and maximum ringing duration |
+| Smart output | Normal media output when no headphones are present; guarded routing when exactly one headphone device is detected; unsafe routes are blocked |
+| Headphone verification | Dual-layer muted startup, low-volume confirmation on the current device, actual-route revalidation, and stop-on-disconnect/focus-loss/multiple-candidate behavior |
+| Sleep sounds | Six real ambient recordings with pause, notification controls, 15–60 minute timer, fade-out, and instant sound switching without resetting the timer |
+| Alarm sounds | Six AOSP alarm sounds with instant preview in the editor and continuous looping while ringing |
+| Data | Local SQLite and SharedPreferences; Android backup and device transfer disabled; no network or account layer |
 
-应用音量完全跟随系统媒体音量，不会擅自调高系统音量。所有音频离线打包，来源和再分发许可可在[音频来源与许可](docs/audio-credits.md)中逐项审查。
+App volume follows the system media volume and never raises it automatically. All audio is bundled for offline use, with sources and redistribution terms documented in [Audio sources and licenses](docs/audio-credits.md).
 
-## 项目状态
+## Project status
 
-| 项目 | 状态 |
+| Item | Status |
 | --- | --- |
-| Android 12 / API 31 及以上构建 | 已实现 |
-| JVM 状态机、调度与策略测试 | 已覆盖 |
-| Lint 与 Debug APK 构建 | 本地门禁 |
-| 模拟器冷启动、主流程与后台拉起 | 已有自动回归脚本 |
-| 有线 / A2DP / USB / LE 耳机矩阵 | **待持续补充实体机证据** |
-| 公开稳定版 / 应用商店发行 | **尚未开放** |
+| Android 12 / API 31+ implementation | Complete |
+| JVM state-machine, scheduling, and policy tests | Covered |
+| Lint and Debug APK build | Local and CI gate |
+| Emulator cold start, primary flow, and background launch | Automated regression scripts available |
+| Wired / A2DP / USB / LE headphone matrix | **Real-device evidence is still being expanded** |
+| Public stable release / app-store distribution | **Not yet available** |
 
-HushWake 不能在关机、无电、被系统强制停止等条件下保证唤醒，也不提供失眠治疗或其他医疗效果。完整边界见 [PRD](docs/hush-wake-prd.md) 与[实体机测试指南](docs/device-test-guide.md)。
+HushWake cannot guarantee an alarm when a device is powered off, out of battery, or the app has been force-stopped. It does not claim to treat insomnia or provide any medical benefit. See the [PRD](docs/hush-wake-prd.md) and [real-device test guide](docs/device-test-guide.md) for the complete boundaries.
 
-## 快速开始
+## Quick start
 
-需要：
+Requirements:
 
 - JDK 17
 - Android SDK 36
-- Windows PowerShell（仓库验证脚本当前以 PowerShell 为主）
+- Windows PowerShell (the repository's verification scripts currently target PowerShell)
 
-克隆并构建：
+Clone and build:
 
 ```powershell
 git clone https://github.com/chenzhiyong1994/hush-wake.git
@@ -77,13 +81,13 @@ cd hush-wake
 .\gradlew.bat :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
 ```
 
-生成的 Debug APK 位于：
+The Debug APK is generated at:
 
 ```text
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
-连接 ADB 设备或模拟器后，可按需运行：
+With an ADB device or emulator connected, run the relevant regression scripts:
 
 ```powershell
 .\scripts\verify-app-launch.ps1
@@ -91,54 +95,56 @@ app/build/outputs/apk/debug/app-debug.apk
 .\scripts\verify-background-alarm.ps1
 ```
 
-闹铃素材连续性检查需要 `ffmpeg` / `ffprobe`：
+Alarm-audio continuity checks require `ffmpeg` and `ffprobe`:
 
 ```powershell
 .\scripts\verify-alarm-audio.ps1
 ```
 
-模拟器回归不能证明真实耳机没有扬声器泄漏；相关结论必须按[实体机测试指南](docs/device-test-guide.md)验证。
+Emulator results cannot prove zero speaker leakage on real headphones. Claims about private headphone playback must be validated with the [real-device test guide](docs/device-test-guide.md).
 
-## 代码地图
+## Code map
 
 ```text
 app/src/main/java/com/hushwake/app/
-├── alarm/       闹钟调度、触发、响铃服务与停止策略
-├── audio/       路由检查、设备指纹、安全引擎与播放器
-├── data/        本地数据库与偏好
-├── domain/      闹钟和设备验证领域规则
-├── guard/       失败静音与动作顺序
-├── noise/       助眠声目录、定时与前台服务
-└── ui/          轻量原生 Android UI
+├── alarm/       Alarm scheduling, triggers, ringing service, and stop policy
+├── audio/       Route checks, device fingerprints, safety engine, and player
+├── data/        Local database and preferences
+├── domain/      Alarm and device-verification domain rules
+├── guard/       Fail-closed muting and action ordering
+├── noise/       Sleep-sound catalog, timers, and foreground service
+└── ui/          Lightweight native Android UI
 ```
 
-进一步阅读：
+Further reading:
 
-- [产品需求文档与安全约束](docs/hush-wake-prd.md)
-- [Android 实现与验证说明](docs/android-implementation.md)
-- [实体机测试指南](docs/device-test-guide.md)
-- [音频来源与第三方许可](docs/audio-credits.md)
+- [Product requirements and safety constraints](docs/hush-wake-prd.md)
+- [Android implementation and verification notes](docs/android-implementation.md)
+- [Real-device test guide](docs/device-test-guide.md)
+- [Audio sources and third-party licenses](docs/audio-credits.md)
 
-## 一起完善
+## Contributing
 
-最有价值的贡献往往不是“再加一个按钮”，而是让某个真实设备上的行为更可证明：
+The most valuable contribution is often not another button, but stronger evidence that HushWake behaves safely on a real device:
 
-- 新 Android 版本或厂商设备的路由兼容性证据；
-- 耳机接入/断连竞态、焦点变化与多候选输出的回归测试；
-- 不收集隐私信息的诊断与可观测性改进；
-- 闹钟可靠性、无障碍与原生交互优化；
-- 许可清晰、可离线再分发的声音素材建议。
+- Routing compatibility evidence for new Android versions and device vendors;
+- Regression tests for headphone connect/disconnect races, audio-focus changes, and multiple output candidates;
+- Diagnostics and observability that do not collect private information;
+- Alarm reliability, accessibility, and native interaction improvements;
+- Suggestions for clearly licensed audio that can be redistributed offline.
 
-请先阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。安全问题请通过 [GitHub Private Vulnerability Reporting](SECURITY.md) 私下报告；Issue 和日志中不要放入蓝牙名称、MAC 地址、精确作息或稳定设备标识。
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Report security issues privately through [GitHub Private Vulnerability Reporting](SECURITY.md). Never include Bluetooth names, MAC addresses, exact sleep schedules, or stable device identifiers in issues or logs.
 
-## 开源许可
+Issues and pull requests are welcome in either English or Chinese.
 
-HushWake 源代码采用 [Apache License 2.0](LICENSE)。
+## License
 
-`app/src/main/res/raw/` 下的音频素材保留各自的 CC0、CC BY 4.0 或 Apache-2.0 许可，不因主仓库许可证而重新授权。具体作者、来源、修改方式与许可见 [docs/audio-credits.md](docs/audio-credits.md)。
+HushWake source code is licensed under the [Apache License 2.0](LICENSE).
+
+Audio assets under `app/src/main/res/raw/` retain their respective CC0, CC BY 4.0, or Apache-2.0 licenses and are not relicensed by the repository's main license. Authors, sources, modifications, and terms are documented in [docs/audio-credits.md](docs/audio-credits.md).
 
 ---
 
 <p align="center">
-  如果这个方向也恰好解决了你的问题，欢迎试着构建、审查或带来一份真实设备证据。
+  If this direction solves a problem you share, try a build, review the safety model, or bring evidence from a real device.
 </p>
