@@ -1,7 +1,7 @@
 # HushWake（悄醒）
 
 <p align="center">
-  <img src="docs/assets/hushwake-hero.svg" alt="HushWake 悄醒：声音，去往正确的地方" width="100%">
+  <img src="docs/assets/hushwake-cover.png" alt="HushWake 悄醒：声音，去往正确的地方" width="100%">
 </p>
 
 <p align="center">
@@ -50,22 +50,7 @@ HushWake 因此选择一条更克制的路线：
 
 ## 路由安全模型
 
-```mermaid
-flowchart LR
-    START["闹钟或助眠会话开始"] --> CANDIDATE{"检测到受支持耳机？"}
-    CANDIDATE -->|否| SPEAKER["系统媒体外放<br/>页面明确提示"]
-    CANDIDATE -->|是| MUTED["播放器保持双层静音"]
-    MUTED --> UNIQUE{"候选设备唯一？"}
-    UNIQUE -->|否| BLOCK["先静音 → 停止 → 振动/通知兜底"]
-    UNIQUE -->|是| LOCAL{"当前耳机的本机验证有效？"}
-    LOCAL -->|否| BLOCK
-    LOCAL -->|是| ROUTE{"本次实际路由通过？"}
-    ROUTE -->|否或不确定| BLOCK
-    ROUTE -->|是| HEADSET["仅耳机播放并渐强"]
-    HEADSET --> CHANGE{"断连、焦点丢失或路由变化？"}
-    CHANGE -->|否| HEADSET
-    CHANGE -->|是| BLOCK
-```
+![HushWake 安全输出路径：无耳机时系统媒体外放；检测到耳机后依次验证候选设备、本机记录和实际路由；验证失败、断连或路由变化时先静音再停止](docs/assets/hushwake-safety-flow.png)
 
 这套模型刻意不承诺 Android 或硬件无法提供的保证。API 31–35 使用兼容验证，API 36+ 使用更完整的路由强验证；两者都仍需真实设备测试。
 
