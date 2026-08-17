@@ -2,7 +2,7 @@
 
 > Sound, routed where it belongs.
 
-![HushWake project cover](assets/hushwake-cover.png)
+![HushWake project cover](assets/hushwake-hero.svg)
 
 HushWake is a safety-first Android alarm and sleep-sound app. When no headphones are present, it can use normal media output. When headphones are detected, it enters a guarded path: playback starts muted, the current device and actual audio route must pass validation, and any disconnect or uncertainty mutes and stops playback instead of falling back to a speaker.
 

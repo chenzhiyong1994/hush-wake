@@ -1,7 +1,7 @@
 # HushWake（悄醒）
 
 <p align="center">
-  <img src="docs/assets/hushwake-cover.png" alt="HushWake 悄醒：声音，去往正确的地方" width="100%">
+  <img src="docs/assets/hushwake-hero.svg" alt="HushWake 悄醒：声音，去往正确的地方" width="100%">
 </p>
 
 <p align="center">
