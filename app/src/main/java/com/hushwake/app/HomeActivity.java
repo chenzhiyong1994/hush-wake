@@ -27,6 +27,7 @@ import android.widget.Spinner;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
+import com.hushwake.app.alarm.AlarmHomeRefreshPolicy;
 import com.hushwake.app.alarm.AlarmRingingService;
 import com.hushwake.app.alarm.AlarmScheduler;
 import com.hushwake.app.alarm.AlarmSessionStore;
@@ -61,6 +62,7 @@ public final class HomeActivity extends Activity {
     private FrameLayout content;
     private LinearLayout navigation;
     private String currentScreen = SCREEN_ALARMS;
+    private boolean alarmReceiverRegistered;
     private boolean noiseReceiverRegistered;
     private final Handler noiseTimerHandler = new Handler(Looper.getMainLooper());
 
@@ -69,6 +71,17 @@ public final class HomeActivity extends Activity {
                 @Override
                 public void onReceive(Context context, Intent intent) {
                     if (SCREEN_NOISE.equals(currentScreen)) showScreen(SCREEN_NOISE, false);
+                }
+            };
+
+    private final BroadcastReceiver alarmUpdates =
+            new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    String state = intent.getStringExtra(AlarmRingingService.EXTRA_STATE);
+                    if (AlarmHomeRefreshPolicy.shouldRefresh(currentScreen, state)) {
+                        showScreen(SCREEN_ALARMS, false);
+                    }
                 }
             };
 
@@ -91,9 +104,28 @@ public final class HomeActivity extends Activity {
     protected void onResume() {
         super.onResume();
         if (preferences.outputPolicyAcknowledged()) showScreen(currentScreen);
+        if (!alarmReceiverRegistered) {
+            registerAlarmReceiver();
+            alarmReceiverRegistered = true;
+        }
         if (!noiseReceiverRegistered) {
             registerNoiseReceiver();
             noiseReceiverRegistered = true;
+        }
+    }
+
+    @SuppressLint("UnspecifiedRegisterReceiverFlag")
+    private void registerAlarmReceiver() {
+        IntentFilter filter = new IntentFilter(AlarmRingingService.ACTION_STATE);
+        if (Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(
+                    alarmUpdates,
+                    filter,
+                    INTERNAL_STATE_PERMISSION,
+                    null,
+                    Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(alarmUpdates, filter, INTERNAL_STATE_PERMISSION, null);
         }
     }
 
@@ -115,6 +147,13 @@ public final class HomeActivity extends Activity {
     @Override
     protected void onDestroy() {
         noiseTimerHandler.removeCallbacksAndMessages(null);
+        if (alarmReceiverRegistered) {
+            try {
+                unregisterReceiver(alarmUpdates);
+            } catch (IllegalArgumentException ignored) {
+                // Receiver already gone.
+            }
+        }
         if (noiseReceiverRegistered) {
             try {
                 unregisterReceiver(noiseUpdates);
@@ -330,11 +369,12 @@ public final class HomeActivity extends Activity {
                 TextView backgroundReady =
                         Ui.text(
                                 this,
-                                "无需保持打开 · Android 会在后台唤醒",
+                                "后台唤醒已交给 Android · 点此检查电池/自启动",
                                 12,
                                 Ui.MUTED,
                                 Typeface.DEFAULT);
                 backgroundReady.setPadding(0, Ui.dp(this, 4), 0, 0);
+                backgroundReady.setOnClickListener(v -> requestBackgroundSettings());
                 card.addView(backgroundReady);
             }
         } else {
@@ -683,6 +723,14 @@ public final class HomeActivity extends Activity {
                     "去开启",
                     this::requestFullScreen);
         }
+        if (!status.backgroundAllowed()) {
+            return infoBanner(
+                    "后台运行已受限",
+                    "系统可能拦截到点启动。请在应用详情中将电池用量设为“不受限制”，并按手机系统允许自启动；强行停止后仍无法唤醒。",
+                    Ui.WARM,
+                    "去解除",
+                    this::requestBackgroundSettings);
+        }
         return null;
     }
 
@@ -746,6 +794,12 @@ public final class HomeActivity extends Activity {
                     new Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT)
                             .setData(android.net.Uri.parse("package:" + getPackageName())));
         }
+    }
+
+    private void requestBackgroundSettings() {
+        startActivity(
+                new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                        .setData(android.net.Uri.parse("package:" + getPackageName())));
     }
 
     private void requestBluetooth() {

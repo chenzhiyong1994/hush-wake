@@ -1,6 +1,7 @@
 package com.hushwake.app.reliability;
 
 import android.Manifest;
+import android.app.ActivityManager;
 import android.app.NotificationManager;
 import android.content.Context;
 import android.content.pm.PackageManager;
@@ -24,6 +25,7 @@ public final class ReadinessChecker {
             boolean exactAlarm,
             boolean notifications,
             boolean fullScreen,
+            boolean backgroundAllowed,
             boolean bluetoothPermission,
             boolean mediaVolume,
             String output,
@@ -44,7 +46,7 @@ public final class ReadinessChecker {
         }
 
         public boolean fullyReady() {
-            return readyForSound() && fullScreen;
+            return readyForSound() && fullScreen && backgroundAllowed;
         }
     }
 
@@ -60,6 +62,8 @@ public final class ReadinessChecker {
         notifications = notifications && notificationManager.areNotificationsEnabled();
         boolean fullScreen =
                 Build.VERSION.SDK_INT < 34 || notificationManager.canUseFullScreenIntent();
+        ActivityManager activityManager = context.getSystemService(ActivityManager.class);
+        boolean backgroundAllowed = !activityManager.isBackgroundRestricted();
         boolean bluetoothGranted =
                 context.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT)
                         == PackageManager.PERMISSION_GRANTED;
@@ -94,6 +98,7 @@ public final class ReadinessChecker {
                 new AlarmScheduler(context).canScheduleExact(),
                 notifications,
                 fullScreen,
+                backgroundAllowed,
                 bluetooth,
                 audio.mediaVolume() > 0,
                 !headsetConnected
