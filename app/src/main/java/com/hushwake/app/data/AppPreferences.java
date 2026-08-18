@@ -10,6 +10,7 @@ public final class AppPreferences {
     private static final String NAME = "hushwake_preferences";
     private static final String KEY_INSTALL_SALT = "install_salt";
     private static final int OUTPUT_POLICY_VERSION = 1;
+    private static final int BACKGROUND_WAKE_SETUP_VERSION = 1;
     private final SharedPreferences values;
 
     public AppPreferences(Context context) {
@@ -30,6 +31,17 @@ public final class AppPreferences {
 
     public void setVibrationWarningAcknowledged(boolean acknowledged) {
         values.edit().putBoolean("vibration_warning_acknowledged", acknowledged).apply();
+    }
+
+    public boolean backgroundWakeSetupAcknowledged() {
+        return values.getInt("background_wake_setup_version", 0)
+                == BACKGROUND_WAKE_SETUP_VERSION;
+    }
+
+    public void acknowledgeBackgroundWakeSetup() {
+        values.edit()
+                .putInt("background_wake_setup_version", BACKGROUND_WAKE_SETUP_VERSION)
+                .commit();
     }
 
     public boolean testAlarmPassed() {

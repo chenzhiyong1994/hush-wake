@@ -1,6 +1,7 @@
 param(
     [string]$Adb = "adb",
-    [string]$Apk = "app\build\outputs\apk\debug\app-debug.apk"
+    [string]$Apk = "app\build\outputs\apk\debug\app-debug.apk",
+    [switch]$KeepBackgroundProcess
 )
 
 $ErrorActionPreference = "Stop"
@@ -48,10 +49,26 @@ function Tap-UiText {
     Start-Sleep -Milliseconds 500
 }
 
+function Wait-FocusedPackage {
+    param([Parameter(Mandatory = $true)][string]$Package)
+    $pattern = 'mCurrentFocus=.*' + [regex]::Escape($Package)
+    for ($attempt = 0; $attempt -lt 10; $attempt++) {
+        $windows = (Invoke-Adb -Arguments @("shell", "dumpsys", "window")) -join "`n"
+        if ($windows -match $pattern) {
+            return
+        }
+        Start-Sleep -Milliseconds 350
+    }
+    throw "Expected focused package was not shown: $Package"
+}
+
+Invoke-Adb -Arguments @("root") | Out-Null
+Invoke-Adb -Arguments @("wait-for-device") | Out-Null
 & $Adb uninstall $packageName 2>&1 | Out-Null
 Invoke-Adb -Arguments @("install", $Apk) | Out-Host
 Invoke-Adb -Arguments @("shell", "pm", "grant", $packageName, "android.permission.POST_NOTIFICATIONS") | Out-Null
 Invoke-Adb -Arguments @("shell", "pm", "grant", $packageName, "android.permission.BLUETOOTH_CONNECT") | Out-Null
+Invoke-Adb -Arguments @("shell", "cmd", "media_session", "volume", "--stream", "3", "--set", "5") | Out-Null
 Invoke-Adb -Arguments @("logcat", "-c") | Out-Null
 Invoke-Adb -Arguments @("shell", "am", "start", "-W", "-n", "$packageName/.HomeActivity") | Out-Null
 Start-Sleep -Seconds 1
@@ -65,6 +82,11 @@ if ($initial.SelectSingleNode("//node[@text='HUSHWAKE  /  悄醒']")) {
 Tap-UiText -Text "+  新建闹钟"
 Find-UiNode -Text "新闹钟" | Out-Null
 Tap-UiText -Text "保存闹钟"
+Find-UiNode -Text "允许后台唤醒闹钟" | Out-Null
+Tap-UiText -Text "去检查后台设置"
+Wait-FocusedPackage -Package "com.android.settings"
+Invoke-Adb -Arguments @("shell", "input", "keyevent", "BACK") | Out-Null
+Start-Sleep -Milliseconds 500
 
 $alarms = (Invoke-Adb -Arguments @("shell", "dumpsys", "alarm")) -join "`n"
 if ($alarms -notmatch 'com\.hushwake\.app\.action\.ALARM_TRIGGER') {
@@ -80,9 +102,19 @@ $trigger = [datetime]::ParseExact($matches[1], "yyyy-MM-dd HH:mm:ss", [Globaliza
 $nearTrigger = $trigger.AddSeconds(-15)
 
 Invoke-Adb -Arguments @("shell", "input", "keyevent", "HOME") | Out-Null
-Invoke-Adb -Arguments @("shell", "am", "kill", $packageName) | Out-Null
-Invoke-Adb -Arguments @("root") | Out-Null
-Invoke-Adb -Arguments @("wait-for-device") | Out-Null
+if (-not $KeepBackgroundProcess) {
+    $appProcess =
+        ((Invoke-Adb -Arguments @("shell", "pidof", $packageName)) -join " ").Trim()
+    if ($appProcess) {
+        $appPid = ($appProcess -split "\s+")[0]
+        Invoke-Adb -Arguments @("shell", "kill", "-9", $appPid) | Out-Null
+    }
+}
+Invoke-Adb -Arguments @("shell", "input", "keyevent", "223") | Out-Null
+$sleepState = (Invoke-Adb -Arguments @("shell", "dumpsys", "power")) -join "`n"
+if ($sleepState -notmatch 'mWakefulness=(Asleep|Dozing)') {
+    throw "Device did not enter a sleeping state before the alarm trigger."
+}
 try {
     Invoke-Adb -Arguments @("shell", "settings", "put", "global", "auto_time", "0") | Out-Null
     $deviceDate = $nearTrigger.ToString("MMddHHmmyyyy.ss", [Globalization.CultureInfo]::InvariantCulture)
@@ -97,9 +129,30 @@ try {
     if ($notifications -notmatch 'pkg=com\.hushwake\.app' -or $notifications -notmatch 'id=4101') {
         throw "Alarm did not post its ringing notification while the app was in background."
     }
+    $session =
+        (Invoke-Adb -Arguments @(
+                "shell",
+                "cat",
+                "/data/data/$packageName/shared_prefs/hushwake_alarm_session.xml")) -join "`n"
+    if ($session -notmatch '<string name="state">AUDIBLE</string>') {
+        throw "Alarm service started but playback did not reach the AUDIBLE state.`n$session"
+    }
+    $activityLog =
+        (Invoke-Adb -Arguments @("logcat", "-d", "-v", "brief", "ActivityTaskManager:I", "*:S")) -join "`n"
+    if ($activityLog -notmatch 'Displayed com\.hushwake\.app/.alarm\.RingingActivity') {
+        $powerAfter = (Invoke-Adb -Arguments @("shell", "dumpsys", "power")) -join "`n"
+        $wakefulness =
+            [regex]::Match($powerAfter, 'mWakefulness=([^\r\n]+)').Groups[1].Value
+        throw "Alarm did not present RingingActivity; wakefulness after trigger: $wakefulness`n$activityLog"
+    }
 } finally {
-    Invoke-Adb -Arguments @("shell", "settings", "put", "global", "auto_time", "1") | Out-Null
-    Invoke-Adb -Arguments @("shell", "am", "force-stop", $packageName) | Out-Null
+    try {
+        Invoke-Adb -Arguments @("wait-for-device") | Out-Null
+        Invoke-Adb -Arguments @("shell", "settings", "put", "global", "auto_time", "1") | Out-Null
+        Invoke-Adb -Arguments @("shell", "am", "force-stop", $packageName) | Out-Null
+    } catch {
+        Write-Warning "Background-alarm cleanup failed: $($_.Exception.Message)"
+    }
 }
 
-Write-Output "PASS: fresh install registered an exact alarm and Android triggered it after the app left foreground."
+Write-Output "PASS: Android triggered an audible alarm and presented its ringing screen after the app left foreground."

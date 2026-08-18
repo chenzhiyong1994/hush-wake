@@ -30,6 +30,7 @@ import com.hushwake.app.audio.PrivatePlaybackEngine;
 import com.hushwake.app.data.AlarmRepository;
 import com.hushwake.app.data.AppPreferences;
 import com.hushwake.app.domain.Alarm;
+import com.hushwake.app.reliability.BackgroundWakePromptPolicy;
 import com.hushwake.app.ui.Ui;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -221,15 +222,50 @@ public final class EditAlarmActivity extends Activity {
         AlarmScheduler scheduler = new AlarmScheduler(this);
         scheduler.cancel(saved.id());
         AlarmScheduler.ScheduleResult result = scheduler.schedule(saved);
-        new AppPreferences(this)
-                .setLastScheduleIssue(
-                        result.result() == AlarmScheduler.Result.SCHEDULED
-                                        || result.result() == AlarmScheduler.Result.DISABLED
-                                ? ""
-                                : result.detail());
+        AppPreferences preferences = new AppPreferences(this);
+        preferences.setLastScheduleIssue(
+                result.result() == AlarmScheduler.Result.SCHEDULED
+                                || result.result() == AlarmScheduler.Result.DISABLED
+                        ? ""
+                        : result.detail());
         Toast.makeText(this, result.detail(), Toast.LENGTH_SHORT).show();
         setResult(RESULT_OK);
+        if (BackgroundWakePromptPolicy.shouldShow(
+                result.result() == AlarmScheduler.Result.SCHEDULED,
+                preferences.backgroundWakeSetupAcknowledged())) {
+            showBackgroundWakeSetup(preferences);
+            return;
+        }
         finish();
+    }
+
+    private void showBackgroundWakeSetup(AppPreferences preferences) {
+        new AlertDialog.Builder(this)
+                .setTitle("允许后台唤醒闹钟")
+                .setMessage(
+                        "Android 没有统一的“后台权限”开关。请在应用设置中将电池用量设为“不受限制”，并按手机系统开启“自启动”或“允许后台活动”。强行停止应用后，系统仍不会唤醒闹钟。")
+                .setPositiveButton(
+                        "去检查后台设置",
+                        (dialog, which) -> {
+                            preferences.acknowledgeBackgroundWakeSetup();
+                            try {
+                                startActivity(
+                                        new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                                                .setData(
+                                                        android.net.Uri.parse(
+                                                                "package:" + getPackageName())));
+                            } catch (RuntimeException error) {
+                                Toast.makeText(
+                                                this,
+                                                "无法打开系统设置，请手动进入悄醒的应用详情。",
+                                                Toast.LENGTH_LONG)
+                                        .show();
+                            }
+                            finish();
+                        })
+                .setNegativeButton("稍后", (dialog, which) -> finish())
+                .setCancelable(false)
+                .show();
     }
 
     private void confirmDelete() {

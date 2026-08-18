@@ -10,8 +10,8 @@ android {
         applicationId = "com.hushwake.app"
         minSdk = 31
         targetSdk = 36
-        versionCode = 8
-        versionName = "0.3.3-beta"
+        versionCode = 9
+        versionName = "0.3.4-beta"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
