@@ -1,7 +1,8 @@
 param(
     [string]$Adb = "adb",
     [string]$Apk = "app\build\outputs\apk\debug\app-debug.apk",
-    [switch]$KeepBackgroundProcess
+    [switch]$KeepBackgroundProcess,
+    [switch]$OpenHomeWhileRinging
 )
 
 $ErrorActionPreference = "Stop"
@@ -49,17 +50,15 @@ function Tap-UiText {
     Start-Sleep -Milliseconds 500
 }
 
-function Wait-FocusedPackage {
-    param([Parameter(Mandatory = $true)][string]$Package)
-    $pattern = 'mCurrentFocus=.*' + [regex]::Escape($Package)
-    for ($attempt = 0; $attempt -lt 10; $attempt++) {
-        $windows = (Invoke-Adb -Arguments @("shell", "dumpsys", "window")) -join "`n"
-        if ($windows -match $pattern) {
-            return
-        }
-        Start-Sleep -Milliseconds 350
+function Tap-FirstAlarmSwitch {
+    $node = (Get-UiXml).SelectSingleNode("//node[@class='android.widget.Switch']")
+    if (-not $node -or $node.bounds -notmatch '\[(\d+),(\d+)\]\[(\d+),(\d+)\]') {
+        throw "Alarm enable switch was not found."
     }
-    throw "Expected focused package was not shown: $Package"
+    $x = [int](([int]$matches[1] + [int]$matches[3]) / 2)
+    $y = [int](([int]$matches[2] + [int]$matches[4]) / 2)
+    Invoke-Adb -Arguments @("shell", "input", "tap", $x, $y) | Out-Null
+    Start-Sleep -Milliseconds 500
 }
 
 Invoke-Adb -Arguments @("root") | Out-Null
@@ -82,11 +81,22 @@ if ($initial.SelectSingleNode("//node[@text='HUSHWAKE  /  悄醒']")) {
 Tap-UiText -Text "+  新建闹钟"
 Find-UiNode -Text "新闹钟" | Out-Null
 Tap-UiText -Text "保存闹钟"
-Find-UiNode -Text "允许后台唤醒闹钟" | Out-Null
-Tap-UiText -Text "去检查后台设置"
-Wait-FocusedPackage -Package "com.android.settings"
-Invoke-Adb -Arguments @("shell", "input", "keyevent", "BACK") | Out-Null
-Start-Sleep -Milliseconds 500
+Find-UiNode -Text "还需关闭电池优化" | Out-Null
+Tap-UiText -Text "立即处理"
+Find-UiNode -Text "Allow" | Out-Null
+Tap-UiText -Text "Allow"
+$powerAllowlist = (Invoke-Adb -Arguments @("shell", "dumpsys", "deviceidle", "whitelist")) -join "`n"
+if ($powerAllowlist -notmatch [regex]::Escape($packageName)) {
+    throw "The system accepted the request but the app is not on the battery optimization allowlist."
+}
+
+Invoke-Adb -Arguments @("shell", "dumpsys", "deviceidle", "whitelist", "-$packageName") | Out-Null
+Tap-FirstAlarmSwitch
+Tap-FirstAlarmSwitch
+Find-UiNode -Text "还需关闭电池优化" | Out-Null
+Tap-UiText -Text "立即处理"
+Find-UiNode -Text "Allow" | Out-Null
+Tap-UiText -Text "Allow"
 
 $alarms = (Invoke-Adb -Arguments @("shell", "dumpsys", "alarm")) -join "`n"
 if ($alarms -notmatch 'com\.hushwake\.app\.action\.ALARM_TRIGGER') {
@@ -136,6 +146,24 @@ try {
                 "/data/data/$packageName/shared_prefs/hushwake_alarm_session.xml")) -join "`n"
     if ($session -notmatch '<string name="state">AUDIBLE</string>') {
         throw "Alarm service started but playback did not reach the AUDIBLE state.`n$session"
+    }
+    if ($OpenHomeWhileRinging) {
+        Invoke-Adb -Arguments @(
+            "shell", "am", "start", "-W",
+            "-a", "android.intent.action.MAIN",
+            "-c", "android.intent.category.LAUNCHER",
+            "-n", "$packageName/.HomeActivity") | Out-Null
+        Start-Sleep -Seconds 1
+        $crashLog =
+            (Invoke-Adb -Arguments @("logcat", "-b", "crash", "-d", "-v", "threadtime")) -join "`n"
+        if ($crashLog -match "Process: $([regex]::Escape($packageName))") {
+            throw "Opening HomeActivity while an alarm is ringing crashed the app.`n$crashLog"
+        }
+        $runningProcess =
+            ((Invoke-Adb -Arguments @("shell", "pidof", $packageName)) -join " ").Trim()
+        if (-not $runningProcess) {
+            throw "Opening HomeActivity while an alarm is ringing left no app process."
+        }
     }
     $activityLog =
         (Invoke-Adb -Arguments @("logcat", "-d", "-v", "brief", "ActivityTaskManager:I", "*:S")) -join "`n"

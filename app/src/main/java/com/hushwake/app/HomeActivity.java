@@ -3,6 +3,7 @@ package com.hushwake.app;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -40,6 +41,7 @@ import com.hushwake.app.noise.NoiseSessionStore;
 import com.hushwake.app.noise.NoiseTimerPresentation;
 import com.hushwake.app.noise.SleepSoundCatalog;
 import com.hushwake.app.noise.WhiteNoiseService;
+import com.hushwake.app.reliability.AlarmWakePermissionPolicy;
 import com.hushwake.app.reliability.ReadinessChecker;
 import com.hushwake.app.ui.Ui;
 import java.time.Instant;
@@ -64,6 +66,7 @@ public final class HomeActivity extends Activity {
     private String currentScreen = SCREEN_ALARMS;
     private boolean alarmReceiverRegistered;
     private boolean noiseReceiverRegistered;
+    private boolean wakePermissionDialogVisible;
     private final Handler noiseTimerHandler = new Handler(Looper.getMainLooper());
 
     private final BroadcastReceiver noiseUpdates =
@@ -103,7 +106,10 @@ public final class HomeActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (preferences.outputPolicyAcknowledged()) showScreen(currentScreen);
+        if (preferences.outputPolicyAcknowledged()) {
+            showScreen(currentScreen);
+            content.post(this::showPendingAlarmWakeAudit);
+        }
         if (!alarmReceiverRegistered) {
             registerAlarmReceiver();
             alarmReceiverRegistered = true;
@@ -112,6 +118,13 @@ public final class HomeActivity extends Activity {
             registerNoiseReceiver();
             noiseReceiverRegistered = true;
         }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(
+            int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (preferences.outputPolicyAcknowledged()) showScreen(currentScreen, false);
     }
 
     @SuppressLint("UnspecifiedRegisterReceiverFlag")
@@ -305,7 +318,7 @@ public final class HomeActivity extends Activity {
         } else {
             AlarmSessionStore.Snapshot active = new AlarmSessionStore(this).load();
             for (Alarm alarm : items) {
-                root.addView(alarmCard(alarm, active));
+                root.addView(alarmCard(alarm, active, readiness));
                 root.addView(Ui.space(this, 12));
             }
         }
@@ -316,7 +329,10 @@ public final class HomeActivity extends Activity {
         return scroll;
     }
 
-    private View alarmCard(Alarm alarm, AlarmSessionStore.Snapshot active) {
+    private View alarmCard(
+            Alarm alarm,
+            AlarmSessionStore.Snapshot active,
+            ReadinessChecker.Status readiness) {
         LinearLayout card = Ui.card(this, alarm.enabled() ? Ui.RAISED : Ui.PANEL);
         LinearLayout top = new LinearLayout(this);
         top.setGravity(Gravity.CENTER_VERTICAL);
@@ -365,18 +381,18 @@ public final class HomeActivity extends Activity {
                             Ui.medium());
             nextView.setPadding(0, Ui.dp(this, 9), 0, 0);
             card.addView(nextView);
-            if (new AlarmScheduler(this).canScheduleExact()) {
-                TextView backgroundReady =
-                        Ui.text(
-                                this,
-                                "后台唤醒已交给 Android · 点此检查电池/自启动",
-                                12,
-                                Ui.MUTED,
-                                Typeface.DEFAULT);
-                backgroundReady.setPadding(0, Ui.dp(this, 4), 0, 0);
-                backgroundReady.setOnClickListener(v -> requestBackgroundSettings());
-                card.addView(backgroundReady);
+            AlarmWakePermissionPolicy.Issue wakeIssue = firstWakeIssue(readiness);
+            String wakeStatus =
+                    wakeIssue == AlarmWakePermissionPolicy.Issue.NONE
+                            ? "Android 标准唤醒检查已通过 · 厂商自启动无法自动确认"
+                            : "后台唤醒检查未通过 · 点此处理";
+            TextView backgroundReady =
+                    Ui.text(this, wakeStatus, 12, Ui.MUTED, Typeface.DEFAULT);
+            backgroundReady.setPadding(0, Ui.dp(this, 4), 0, 0);
+            if (wakeIssue != AlarmWakePermissionPolicy.Issue.NONE) {
+                backgroundReady.setOnClickListener(v -> requestWakePermission(wakeIssue));
             }
+            card.addView(backgroundReady);
         } else {
             TextView off = Ui.text(this, "已关闭", 12, Ui.MUTED, Ui.medium());
             off.setPadding(0, Ui.dp(this, 9), 0, 0);
@@ -416,6 +432,10 @@ public final class HomeActivity extends Activity {
                         Toast.LENGTH_SHORT)
                 .show();
         showScreen(SCREEN_ALARMS);
+        if (checked) {
+            preferences.requestAlarmWakeAudit();
+            content.post(this::showPendingAlarmWakeAudit);
+        }
     }
 
     private void stopIfRinging(long alarmId) {
@@ -731,7 +751,89 @@ public final class HomeActivity extends Activity {
                     "去解除",
                     this::requestBackgroundSettings);
         }
+        if (!status.standbyAllowed()) {
+            return infoBanner(
+                    "应用处于受限待机状态",
+                    "Android 会严格限制后台任务和闹钟，请在应用电池设置中改为“不受限制”。",
+                    Ui.WARM,
+                    "去解除",
+                    this::requestBackgroundSettings);
+        }
+        if (!status.batteryOptimizationExempt()) {
+            return infoBanner(
+                    "电池优化可能拦截后台唤醒",
+                    "可通过 Android 专用系统确认，将悄醒加入电池优化豁免名单。",
+                    Ui.WARM,
+                    "去允许",
+                    this::requestBatteryOptimization);
+        }
         return null;
+    }
+
+    private void showPendingAlarmWakeAudit() {
+        if (wakePermissionDialogVisible || !preferences.consumeAlarmWakeAuditRequest()) return;
+        AlarmWakePermissionPolicy.Issue issue = firstWakeIssue(ReadinessChecker.inspect(this));
+        if (issue == AlarmWakePermissionPolicy.Issue.NONE) return;
+        wakePermissionDialogVisible = true;
+        AlertDialog dialog =
+                new AlertDialog.Builder(this)
+                        .setTitle(wakeIssueTitle(issue))
+                        .setMessage(wakeIssueMessage(issue))
+                        .setPositiveButton(
+                                "立即处理",
+                                (ignoredDialog, which) -> requestWakePermission(issue))
+                        .setNegativeButton("暂不处理", null)
+                        .create();
+        dialog.setOnDismissListener(ignored -> wakePermissionDialogVisible = false);
+        dialog.show();
+    }
+
+    private static AlarmWakePermissionPolicy.Issue firstWakeIssue(
+            ReadinessChecker.Status status) {
+        return AlarmWakePermissionPolicy.firstIssue(
+                status.exactAlarm(),
+                status.notifications(),
+                status.fullScreen(),
+                status.backgroundAllowed(),
+                status.standbyAllowed(),
+                status.batteryOptimizationExempt());
+    }
+
+    private static String wakeIssueTitle(AlarmWakePermissionPolicy.Issue issue) {
+        return switch (issue) {
+            case EXACT_ALARM -> "还需允许精确闹钟";
+            case NOTIFICATIONS -> "还需允许闹钟通知";
+            case FULL_SCREEN -> "还需允许全屏响铃";
+            case BACKGROUND_RESTRICTED -> "后台运行已被系统限制";
+            case STANDBY_RESTRICTED -> "应用处于受限待机状态";
+            case BATTERY_OPTIMIZATION -> "还需关闭电池优化";
+            case NONE -> "闹钟唤醒检查已通过";
+        };
+    }
+
+    private static String wakeIssueMessage(AlarmWakePermissionPolicy.Issue issue) {
+        return switch (issue) {
+            case EXACT_ALARM -> "没有精确闹钟能力，系统无法保证按设定时间触发。";
+            case NOTIFICATIONS -> "没有通知权限，响铃入口和停止操作可能无法显示。";
+            case FULL_SCREEN -> "没有全屏响铃能力，锁屏时可能只显示普通通知。";
+            case BACKGROUND_RESTRICTED -> "Android 已明确禁止悄醒在后台执行，闹钟和前台响铃服务都会被拦截。";
+            case STANDBY_RESTRICTED -> "Android 已把悄醒放入 Restricted 待机桶，后台闹钟次数和执行会被严格限制。";
+            case BATTERY_OPTIMIZATION -> "悄醒尚未加入电池优化豁免名单。下一步会打开 Android 针对此应用的专用系统确认，而不是普通应用详情页。";
+            case NONE -> "Android 可读取的闹钟唤醒能力均已通过；厂商自启动开关没有统一读取接口。";
+        };
+    }
+
+    private void requestWakePermission(AlarmWakePermissionPolicy.Issue issue) {
+        switch (issue) {
+            case EXACT_ALARM -> requestExactAlarm();
+            case NOTIFICATIONS -> requestNotifications();
+            case FULL_SCREEN -> requestFullScreen();
+            case BACKGROUND_RESTRICTED, STANDBY_RESTRICTED -> requestBackgroundSettings();
+            case BATTERY_OPTIMIZATION -> requestBatteryOptimization();
+            case NONE -> {
+                // Nothing to request.
+            }
+        }
     }
 
     private View infoBanner(
@@ -800,6 +902,21 @@ public final class HomeActivity extends Activity {
         startActivity(
                 new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
                         .setData(android.net.Uri.parse("package:" + getPackageName())));
+    }
+
+    private void requestBatteryOptimization() {
+        Intent request =
+                new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                        .setData(android.net.Uri.parse("package:" + getPackageName()));
+        try {
+            startActivity(request);
+        } catch (RuntimeException unavailable) {
+            try {
+                startActivity(new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
+            } catch (RuntimeException missingSettings) {
+                Toast.makeText(this, "系统没有提供电池优化设置入口。", Toast.LENGTH_LONG).show();
+            }
+        }
     }
 
     private void requestBluetooth() {

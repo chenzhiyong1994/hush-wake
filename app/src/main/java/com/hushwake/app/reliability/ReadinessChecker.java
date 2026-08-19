@@ -3,11 +3,13 @@ package com.hushwake.app.reliability;
 import android.Manifest;
 import android.app.ActivityManager;
 import android.app.NotificationManager;
+import android.app.usage.UsageStatsManager;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.media.AudioManager;
 import android.media.AudioDeviceInfo;
 import android.os.Build;
+import android.os.PowerManager;
 import com.hushwake.app.alarm.AlarmScheduler;
 import com.hushwake.app.audio.AudioRouteInspector;
 import com.hushwake.app.audio.DeviceFingerprint;
@@ -26,6 +28,8 @@ public final class ReadinessChecker {
             boolean notifications,
             boolean fullScreen,
             boolean backgroundAllowed,
+            boolean standbyAllowed,
+            boolean batteryOptimizationExempt,
             boolean bluetoothPermission,
             boolean mediaVolume,
             String output,
@@ -46,7 +50,11 @@ public final class ReadinessChecker {
         }
 
         public boolean fullyReady() {
-            return readyForSound() && fullScreen && backgroundAllowed;
+            return readyForSound()
+                    && fullScreen
+                    && backgroundAllowed
+                    && standbyAllowed
+                    && batteryOptimizationExempt;
         }
     }
 
@@ -64,6 +72,13 @@ public final class ReadinessChecker {
                 Build.VERSION.SDK_INT < 34 || notificationManager.canUseFullScreenIntent();
         ActivityManager activityManager = context.getSystemService(ActivityManager.class);
         boolean backgroundAllowed = !activityManager.isBackgroundRestricted();
+        UsageStatsManager usageStatsManager = context.getSystemService(UsageStatsManager.class);
+        boolean standbyAllowed =
+                usageStatsManager.getAppStandbyBucket()
+                        != UsageStatsManager.STANDBY_BUCKET_RESTRICTED;
+        PowerManager powerManager = context.getSystemService(PowerManager.class);
+        boolean batteryOptimizationExempt =
+                powerManager.isIgnoringBatteryOptimizations(context.getPackageName());
         boolean bluetoothGranted =
                 context.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT)
                         == PackageManager.PERMISSION_GRANTED;
@@ -99,6 +114,8 @@ public final class ReadinessChecker {
                 notifications,
                 fullScreen,
                 backgroundAllowed,
+                standbyAllowed,
+                batteryOptimizationExempt,
                 bluetooth,
                 audio.mediaVolume() > 0,
                 !headsetConnected

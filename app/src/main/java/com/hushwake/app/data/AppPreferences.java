@@ -9,8 +9,8 @@ import java.util.Base64;
 public final class AppPreferences {
     private static final String NAME = "hushwake_preferences";
     private static final String KEY_INSTALL_SALT = "install_salt";
+    private static final String KEY_ALARM_WAKE_AUDIT_PENDING = "alarm_wake_audit_pending";
     private static final int OUTPUT_POLICY_VERSION = 1;
-    private static final int BACKGROUND_WAKE_SETUP_VERSION = 1;
     private final SharedPreferences values;
 
     public AppPreferences(Context context) {
@@ -33,15 +33,14 @@ public final class AppPreferences {
         values.edit().putBoolean("vibration_warning_acknowledged", acknowledged).apply();
     }
 
-    public boolean backgroundWakeSetupAcknowledged() {
-        return values.getInt("background_wake_setup_version", 0)
-                == BACKGROUND_WAKE_SETUP_VERSION;
+    public void requestAlarmWakeAudit() {
+        values.edit().putBoolean(KEY_ALARM_WAKE_AUDIT_PENDING, true).commit();
     }
 
-    public void acknowledgeBackgroundWakeSetup() {
-        values.edit()
-                .putInt("background_wake_setup_version", BACKGROUND_WAKE_SETUP_VERSION)
-                .commit();
+    public boolean consumeAlarmWakeAuditRequest() {
+        if (!values.getBoolean(KEY_ALARM_WAKE_AUDIT_PENDING, false)) return false;
+        values.edit().remove(KEY_ALARM_WAKE_AUDIT_PENDING).commit();
+        return true;
     }
 
     public boolean testAlarmPassed() {
