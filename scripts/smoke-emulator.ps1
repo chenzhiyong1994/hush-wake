@@ -60,6 +60,14 @@ function Assert-UiText {
     Find-UiNode $Text | Out-Null
 }
 
+function Assert-UiTextAbsent {
+    param([string]$Text)
+    $xml = Get-UiXml
+    if ($xml.SelectSingleNode("//node[@text='$Text']")) {
+        throw "Unexpected UI text found: $Text"
+    }
+}
+
 Invoke-Adb -Arguments @("install", "-r", $Apk) | Out-Host
 if (-not $KeepData) {
     Invoke-Adb -Arguments @("shell", "pm", "clear", $packageName) | Out-Null
@@ -101,7 +109,7 @@ if ($minuteLabels.Count -ne 1) {
 Tap-UiText "停止"
 
 Tap-UiText "闹钟"
-Assert-UiText "不同于普通闹钟：悄醒只用媒体音播放，跟随手机媒体音量；连接耳机后只走已验证耳机，断连也不会转到扬声器。"
+Assert-UiTextAbsent "不同于普通闹钟：悄醒只用媒体音播放，跟随手机媒体音量；连接耳机后只走已验证耳机，断连也不会转到扬声器。"
 Tap-UiText "+  新建闹钟"
 Assert-UiText "新闹钟"
 Assert-UiText "唤醒时间"
@@ -123,4 +131,4 @@ if (-not $appProcessId -or $crashLog -match "Process: $([regex]::Escape($package
     throw "HushWake smoke test found a crash or missing process`n$crashLog"
 }
 
-Write-Output "PASS: onboarding, product promise, six-sound libraries, sleep controls, alarm time wheels, and editor are alive with PID $appProcessId"
+Write-Output "PASS: onboarding, alarm and sleep pages, six-sound libraries, sleep controls, alarm time wheels, and editor are alive with PID $appProcessId"

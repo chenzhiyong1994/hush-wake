@@ -292,7 +292,7 @@ public final class EditAlarmActivity extends Activity {
                 new AlertDialog.Builder(this)
                         .setTitle("确认厂商自启动")
                         .setMessage(
-                                "Android 没有接口读取这个厂商开关。请确认你刚才已经为“悄醒”开启“自启动”“允许后台启动”或同等选项。")
+                                "若需关闭应用后也正常唤起闹铃，请开启“自启动”、“允许后台启动”权限")
                         .setPositiveButton(
                                 "已经开启",
                                 (ignoredDialog, which) -> {

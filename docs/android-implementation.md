@@ -1,10 +1,10 @@
 # HushWake Android 实现与验证
 
-本文记录 `0.3.7-beta` 的工程入口；产品行为以 `hush-wake-prd.md` 为准，实体机安全验收以 `device-test-guide.md` 为准。
+本文记录 `0.3.8-beta` 的工程入口；产品行为以 `hush-wake-prd.md` 为准，实体机安全验收以 `device-test-guide.md` 为准。
 
 ## 运行结构
 
-- `HomeActivity` 只承载首次引导、“闹钟”和“助眠声”两个主页面；系统权限缺失、后台受限和当前输出状态以内联卡片呈现。主页重新检查精确闹钟、通知、全屏响铃、系统后台限制、App Standby Bucket 和电池优化豁免，按优先级显示处理入口，但保存或重新启用闹钟时不自动弹窗或打开设置。厂商自启动没有统一可读 API，因此在闹钟列表顶部、已开启闹钟卡片和 `EditAlarmActivity` 中持续显示暖色风险提醒；只有用户点击“去设置”后才按厂商尝试打开启动管理页，返回后要求人工确认并按当前厂商保存。`EditAlarmActivity` 通过小时/分钟双滚轮和三个相对时间快捷项编辑时间，点选铃声通过短生命周期 `PrivatePlaybackEngine` 会话即时试听；保存新建或编辑结果会自动启用，启停开关只保留在列表页。
+- `HomeActivity` 只承载首次引导、“闹钟”和“助眠声”两个主页面；系统权限缺失、后台受限和当前输出状态以内联卡片呈现。主页重新检查精确闹钟、通知、全屏响铃、系统后台限制、App Standby Bucket 和电池优化豁免，按优先级显示处理入口，但保存或重新启用闹钟时不自动弹窗或打开设置。厂商自启动没有统一可读 API，因此仅在闹钟列表顶部和 `EditAlarmActivity` 中显示暖色风险提醒，闹钟卡片不重复展示；只有用户点击“去设置”后才按厂商尝试打开启动管理页，返回后要求人工确认并按当前厂商保存。`EditAlarmActivity` 通过小时/分钟双滚轮和三个相对时间快捷项编辑时间，点选铃声通过短生命周期 `PrivatePlaybackEngine` 会话即时试听；保存新建或编辑结果会自动启用，启停开关只保留在列表页。
 - SQLite 只保存闹钟和当前耳机验证摘要；SharedPreferences 保存必要偏好与粗粒度当前会话状态。没有用户行为历史表，Android 备份和设备迁移均关闭。
 - `AlarmScheduler` 使用稳定 `PendingIntent` 和 `setAlarmClock()`；开机、时间/时区变化、应用升级、精确权限重新授予后重排。API 33+ 声明闹钟应用允许的 `USE_EXACT_ALARM`，API 31–32 以 `SCHEDULE_EXACT_ALARM` 兼容；发布到 Google Play 前必须完成精确闹钟用途声明。
 - `AlarmRingingService` 与 `WhiteNoiseService` 是 `mediaPlayback` 前台服务。两者共用 `PrivatePlaybackEngine`，通知频道本身无声音且不绕过勿扰。

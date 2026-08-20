@@ -43,7 +43,6 @@ import com.hushwake.app.noise.SleepSoundCatalog;
 import com.hushwake.app.noise.WhiteNoiseService;
 import com.hushwake.app.reliability.AlarmWakePermissionPolicy;
 import com.hushwake.app.reliability.OemAutostartNavigator;
-import com.hushwake.app.reliability.OemAutostartPolicy;
 import com.hushwake.app.reliability.ReadinessChecker;
 import com.hushwake.app.ui.Ui;
 import java.time.Instant;
@@ -287,15 +286,6 @@ public final class HomeActivity extends Activity {
         LinearLayout root = pageRoot(scroll);
         root.addView(Ui.eyebrow(this, "闹钟"));
         root.addView(hero("几点叫醒你？", 36));
-        TextView promise =
-                Ui.text(
-                        this,
-                        "不同于普通闹钟：悄醒只用媒体音播放，跟随手机媒体音量；连接耳机后只走已验证耳机，断连也不会转到扬声器。",
-                        13,
-                        Ui.MUTED,
-                        Typeface.DEFAULT);
-        promise.setPadding(0, 0, 0, Ui.dp(this, 20));
-        root.addView(promise);
         ReadinessChecker.Status readiness = ReadinessChecker.inspect(this);
         root.addView(outputBanner(readiness));
         View permission = alarmPermissionBanner(readiness);
@@ -326,7 +316,7 @@ public final class HomeActivity extends Activity {
         } else {
             AlarmSessionStore.Snapshot active = new AlarmSessionStore(this).load();
             for (Alarm alarm : items) {
-                root.addView(alarmCard(alarm, active, readiness));
+                root.addView(alarmCard(alarm, active));
                 root.addView(Ui.space(this, 12));
             }
         }
@@ -337,10 +327,7 @@ public final class HomeActivity extends Activity {
         return scroll;
     }
 
-    private View alarmCard(
-            Alarm alarm,
-            AlarmSessionStore.Snapshot active,
-            ReadinessChecker.Status readiness) {
+    private View alarmCard(Alarm alarm, AlarmSessionStore.Snapshot active) {
         LinearLayout card = Ui.card(this, alarm.enabled() ? Ui.RAISED : Ui.PANEL);
         LinearLayout top = new LinearLayout(this);
         top.setGravity(Gravity.CENTER_VERTICAL);
@@ -389,48 +376,6 @@ public final class HomeActivity extends Activity {
                             Ui.medium());
             nextView.setPadding(0, Ui.dp(this, 9), 0, 0);
             card.addView(nextView);
-            AlarmWakePermissionPolicy.Issue wakeIssue = firstWakeIssue(readiness);
-            if (wakeIssue != AlarmWakePermissionPolicy.Issue.NONE
-                    && wakeIssue
-                            != AlarmWakePermissionPolicy.Issue.OEM_AUTOSTART_UNCONFIRMED) {
-                TextView standardWarning =
-                        Ui.text(
-                                this,
-                                "⚠ 后台唤醒检查未通过 · 点此处理",
-                                12,
-                                Ui.ACID,
-                                Ui.medium());
-                standardWarning.setPadding(0, Ui.dp(this, 4), 0, 0);
-                standardWarning.setOnClickListener(v -> requestWakePermission(wakeIssue));
-                card.addView(standardWarning);
-            }
-            if (!readiness.oemAutostartConfirmed()) {
-                TextView oemWarning =
-                        Ui.text(
-                                this,
-                                "⚠ 自启动未确认 · 退出应用后闹铃可能无法唤起",
-                                12,
-                                Ui.ACID,
-                                Ui.medium());
-                oemWarning.setPadding(0, Ui.dp(this, 4), 0, 0);
-                oemWarning.setOnClickListener(v -> requestOemAutostart());
-                card.addView(oemWarning);
-            } else if (wakeIssue == AlarmWakePermissionPolicy.Issue.NONE) {
-                TextView ready =
-                        Ui.text(
-                                this,
-                                OemAutostartPolicy.requiresManualConfirmation(Build.MANUFACTURER)
-                                        ? "Android 标准检查已通过 · 厂商自启动已人工确认"
-                                        : "Android 唤醒检查已通过",
-                                12,
-                                Ui.MUTED,
-                                Typeface.DEFAULT);
-                ready.setPadding(0, Ui.dp(this, 4), 0, 0);
-                if (OemAutostartPolicy.requiresManualConfirmation(Build.MANUFACTURER)) {
-                    ready.setOnClickListener(v -> requestOemAutostart());
-                }
-                card.addView(ready);
-            }
         } else {
             TextView off = Ui.text(this, "已关闭", 12, Ui.MUTED, Ui.medium());
             off.setPadding(0, Ui.dp(this, 9), 0, 0);
@@ -823,7 +768,7 @@ public final class HomeActivity extends Activity {
                 new AlertDialog.Builder(this)
                         .setTitle("确认厂商自启动")
                         .setMessage(
-                                "Android 没有接口读取这个厂商开关。请确认你刚才已经为“悄醒”开启“自启动”“允许后台启动”或同等选项。")
+                                "若需关闭应用后也正常唤起闹铃，请开启“自启动”、“允许后台启动”权限")
                         .setPositiveButton(
                                 "已经开启",
                                 (ignoredDialog, which) -> {
