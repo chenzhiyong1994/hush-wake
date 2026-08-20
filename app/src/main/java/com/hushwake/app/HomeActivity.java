@@ -9,7 +9,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.media.AudioManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -23,8 +26,10 @@ import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
+import android.widget.SeekBar;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -194,8 +199,8 @@ public final class HomeActivity extends Activity {
         navigation.setOrientation(LinearLayout.HORIZONTAL);
         navigation.setPadding(Ui.dp(this, 4), Ui.dp(this, 4), Ui.dp(this, 4), Ui.dp(this, 4));
         navigation.setBackground(Ui.round(this, Ui.PANEL, 18, Ui.LINE));
-        addNav("闹钟", SCREEN_ALARMS);
-        addNav("助眠声", SCREEN_NOISE);
+        addNav("闹钟", SCREEN_ALARMS, R.drawable.ic_nav_alarm);
+        addNav("助眠声", SCREEN_NOISE, R.drawable.ic_nav_moon);
         LinearLayout.LayoutParams navParams =
                 new LinearLayout.LayoutParams(-1, Ui.dp(this, 58));
         navParams.setMargins(
@@ -204,9 +209,18 @@ public final class HomeActivity extends Activity {
         return shell;
     }
 
-    private void addNav(String label, String screen) {
-        TextView item = Ui.text(this, label, 13, Ui.MUTED, Ui.bold());
+    private void addNav(String label, String screen, int iconResource) {
+        LinearLayout item = new LinearLayout(this);
+        item.setOrientation(LinearLayout.HORIZONTAL);
         item.setGravity(Gravity.CENTER);
+        ImageView icon = new ImageView(this);
+        icon.setImageResource(iconResource);
+        icon.setImageTintList(ColorStateList.valueOf(Ui.MUTED));
+        LinearLayout.LayoutParams iconParams =
+                new LinearLayout.LayoutParams(Ui.dp(this, 19), Ui.dp(this, 19));
+        iconParams.rightMargin = Ui.dp(this, 8);
+        item.addView(icon, iconParams);
+        item.addView(Ui.text(this, label, 13, Ui.MUTED, Ui.bold()));
         item.setTag(screen);
         item.setOnClickListener(v -> showScreen(screen));
         navigation.addView(item, new LinearLayout.LayoutParams(0, -1, 1));
@@ -230,10 +244,13 @@ public final class HomeActivity extends Activity {
             page.animate().alpha(1f).translationY(0f).setDuration(180L).start();
         }
         for (int i = 0; i < navigation.getChildCount(); i++) {
-            TextView item = (TextView) navigation.getChildAt(i);
+            LinearLayout item = (LinearLayout) navigation.getChildAt(i);
             boolean selected = screen.equals(item.getTag());
-            item.setTextColor(selected ? Ui.ACID : Ui.MUTED);
             item.setBackground(selected ? Ui.round(this, Ui.RAISED, 14, Ui.LINE) : null);
+            ((ImageView) item.getChildAt(0))
+                    .setImageTintList(
+                            ColorStateList.valueOf(selected ? Ui.ACID : Ui.MUTED));
+            ((TextView) item.getChildAt(1)).setTextColor(selected ? Ui.ACID : Ui.MUTED);
         }
     }
 
@@ -577,7 +594,7 @@ public final class HomeActivity extends Activity {
         ReadinessChecker.Status readiness = ReadinessChecker.inspect(this);
         root.addView(outputBanner(readiness));
         root.addView(Ui.space(this, 18));
-        root.addView(pageHeader("想听什么入睡？", "6 种真实录音 · 本地离线播放", null, null));
+        root.addView(pageHeader("想听什么入睡？", "8 种高品质原声 · 本地离线播放", null, null));
         root.addView(Ui.space(this, 18));
 
         NoiseSessionStore.Snapshot session = new NoiseSessionStore(this).load();
@@ -600,7 +617,7 @@ public final class HomeActivity extends Activity {
                 Ui.text(this, "声音库", 13, Ui.MUTED, Ui.medium()),
                 new LinearLayout.LayoutParams(0, -2, 1));
         libraryTitle.addView(
-                Ui.text(this, "左右滑动选择", 11, Ui.MUTED, Typeface.DEFAULT));
+                Ui.text(this, "左右滑动选择 8 种原声", 11, Ui.MUTED, Typeface.DEFAULT));
         root.addView(libraryTitle);
         root.addView(Ui.space(this, 10));
         HorizontalScrollView soundStrip = new HorizontalScrollView(this);
@@ -613,7 +630,7 @@ public final class HomeActivity extends Activity {
             SleepSoundCatalog.Item item = sounds.get(i);
             String soundId = item.id();
             boolean selected = soundId.equals(selectedSoundId);
-            LinearLayout choice = soundChoice(item, selected);
+            FrameLayout choice = soundChoice(item, selected);
             choice.setOnClickListener(v -> selectSleepSound(soundId, session, active));
             LinearLayout.LayoutParams params =
                     new LinearLayout.LayoutParams(Ui.dp(this, 124), Ui.dp(this, 154));
@@ -702,27 +719,31 @@ public final class HomeActivity extends Activity {
         status.addView(playbackActions);
         root.addView(status);
 
-        OptionSelector timer =
-                optionSelector(
-                        "定时关闭时长",
-                        new String[] {"持续播放", "15 分钟", "30 分钟", "45 分钟", "60 分钟"},
-                        indexOf(new int[] {0, 15, 30, 45, 60}, preferences.noiseTimerMinutes()));
-        OptionSelector fade =
-                optionSelector(
-                        "停止方式",
-                        new String[] {"直接结束", "5 秒渐隐", "15 秒渐隐", "30 秒渐隐"},
-                        indexOf(new int[] {0, 5, 15, 30}, preferences.noiseFadeSeconds()));
+        TimerSelector timer = timerSelector(preferences.noiseTimerMinutes());
+        FadeSelector fade = fadeSelector(preferences.noiseFadeSeconds());
         if (timerPresentation.showNextSessionSettings()) {
             root.addView(Ui.space(this, 16));
             LinearLayout controls = Ui.card(this, Ui.GLASS);
             controls.setPadding(
                     Ui.dp(this, 18), Ui.dp(this, 16), Ui.dp(this, 18), Ui.dp(this, 18));
-            controls.addView(sectionHeader("本次播放设置", "开始前可随时调整"));
-            controls.addView(Ui.space(this, 14));
+            LinearLayout settingsHeader = new LinearLayout(this);
+            settingsHeader.setGravity(Gravity.CENTER_VERTICAL);
+            ImageView timerIcon = new ImageView(this);
+            timerIcon.setImageResource(R.drawable.ic_playback_timer);
+            timerIcon.setImageTintList(ColorStateList.valueOf(Ui.ACID));
+            LinearLayout.LayoutParams timerIconParams =
+                    new LinearLayout.LayoutParams(Ui.dp(this, 18), Ui.dp(this, 18));
+            timerIconParams.rightMargin = Ui.dp(this, 8);
+            settingsHeader.addView(timerIcon, timerIconParams);
+            settingsHeader.addView(
+                    Ui.text(this, "本次播放设置", 13, Ui.PAPER, Ui.bold()),
+                    new LinearLayout.LayoutParams(0, -2, 1));
+            controls.addView(settingsHeader);
+            controls.addView(Ui.space(this, 16));
             controls.addView(timer.root);
-            controls.addView(Ui.space(this, 14));
+            controls.addView(Ui.space(this, 16));
             controls.addView(Ui.divider(this));
-            controls.addView(Ui.space(this, 14));
+            controls.addView(Ui.space(this, 16));
             controls.addView(fade.root);
             root.addView(controls);
         } else {
@@ -741,10 +762,8 @@ public final class HomeActivity extends Activity {
                         return;
                     }
                     String soundId = selectedSoundId;
-                    int timerMinutes =
-                            new int[] {0, 15, 30, 45, 60}[timer.index];
-                    int fadeSeconds =
-                            new int[] {0, 5, 15, 30}[fade.index];
+                    int timerMinutes = timer.minutes;
+                    int fadeSeconds = fade.seconds;
                     preferences.saveNoiseDefaults(timerMinutes, fadeSeconds, soundId);
                     Intent play =
                             new Intent(this, WhiteNoiseService.class)
@@ -767,34 +786,62 @@ public final class HomeActivity extends Activity {
         return scroll;
     }
 
-    private LinearLayout soundChoice(SleepSoundCatalog.Item item, boolean selected) {
-        LinearLayout choice = new LinearLayout(this);
-        choice.setOrientation(LinearLayout.VERTICAL);
-        choice.setGravity(Gravity.START);
-        choice.setPadding(Ui.dp(this, 13), Ui.dp(this, 13), Ui.dp(this, 13), Ui.dp(this, 13));
+    private FrameLayout soundChoice(SleepSoundCatalog.Item item, boolean selected) {
+        FrameLayout choice = new FrameLayout(this);
+        choice.setBackground(Ui.round(this, Color.TRANSPARENT, 24, Color.TRANSPARENT));
+        choice.setClipToOutline(true);
+
+        ImageView texture = new ImageView(this);
+        texture.setImageResource(item.textureResourceId());
+        texture.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        texture.setAlpha(selected ? .94f : .72f);
+        choice.addView(texture, new FrameLayout.LayoutParams(-1, -1));
+
+        View scrim = new View(this);
+        GradientDrawable shadow =
+                new GradientDrawable(
+                        GradientDrawable.Orientation.TOP_BOTTOM,
+                        new int[] {
+                            Color.argb(18, 7, 9, 14),
+                            Color.argb(88, 7, 9, 14),
+                            Color.argb(242, 7, 9, 14)
+                        });
+        scrim.setBackground(shadow);
+        choice.addView(scrim, new FrameLayout.LayoutParams(-1, -1));
+
+        LinearLayout foreground = new LinearLayout(this);
+        foreground.setOrientation(LinearLayout.VERTICAL);
+        foreground.setPadding(
+                Ui.dp(this, 13), Ui.dp(this, 13), Ui.dp(this, 13), Ui.dp(this, 13));
         int accent = soundAccent(item.id());
-        choice.setBackground(
-                selected
-                        ? Ui.gradient(this, Ui.ACID_SOFT, Ui.PANEL, 24, Ui.ACID)
-                        : Ui.gradient(this, Ui.GLASS, Ui.PANEL, 24, Ui.LINE));
         TextView symbol = Ui.text(this, item.symbol(), 15, accent, Ui.bold());
         symbol.setGravity(Gravity.CENTER);
-        symbol.setBackground(Ui.round(this, Ui.PANEL, 999, accent));
-        choice.addView(symbol, new LinearLayout.LayoutParams(Ui.dp(this, 34), Ui.dp(this, 34)));
-        choice.addView(Ui.space(this, 31), new LinearLayout.LayoutParams(1, 0, 1));
-        TextView label = Ui.text(this, item.shortLabel(), 14, Ui.PAPER, Ui.bold());
-        choice.addView(label);
+        symbol.setBackground(Ui.round(this, Color.argb(215, 18, 23, 33), 999, accent));
+        foreground.addView(
+                symbol, new LinearLayout.LayoutParams(Ui.dp(this, 34), Ui.dp(this, 34)));
+        foreground.addView(Ui.space(this, 31), new LinearLayout.LayoutParams(1, 0, 1));
+        foreground.addView(Ui.text(this, item.shortLabel(), 14, Ui.PAPER, Ui.bold()));
         TextView note = Ui.text(this, item.note(), 10, Ui.MUTED, Typeface.DEFAULT);
         note.setPadding(0, Ui.dp(this, 2), 0, 0);
-        choice.addView(note);
+        foreground.addView(note);
+        choice.addView(foreground, new FrameLayout.LayoutParams(-1, -1));
+
+        View border = new View(this);
+        border.setBackground(
+                Ui.round(
+                        this,
+                        Color.TRANSPARENT,
+                        24,
+                        selected ? Ui.ACID : Color.argb(150, 42, 53, 72)));
+        choice.addView(border, new FrameLayout.LayoutParams(-1, -1));
         return choice;
     }
 
     private int soundAccent(String soundId) {
         return switch (soundId) {
-            case "rain", "stream" -> Ui.BLUE;
+            case "rain", "stream", "ocean" -> Ui.BLUE;
             case "fireplace" -> Ui.ACID;
-            case "crickets" -> Ui.VIOLET;
+            case "crickets", "thunder" -> Ui.VIOLET;
             default -> Ui.WARM;
         };
     }
@@ -851,42 +898,56 @@ public final class HomeActivity extends Activity {
         String title;
         String detail;
         int accent;
+        int dotColor;
+        int iconResource = R.drawable.ic_output_speaker;
         Runnable action = null;
         String actionLabel = null;
         if (!status.bluetoothPermission()) {
             title = "允许蓝牙权限后自动选择输出";
             detail = "用于判断耳机是否连接，不读取或保存耳机名称。";
             accent = Ui.WARM;
+            dotColor = Ui.ACID;
             action = this::requestBluetooth;
             actionLabel = "允许";
         } else if (!status.mediaVolume()) {
             title = "手机媒体音量当前为 0";
             detail = "悄醒不会替你调高音量。";
             accent = Ui.ACID;
+            dotColor = Ui.DANGER;
             action = () -> startActivity(new Intent(Settings.ACTION_SOUND_SETTINGS));
-            actionLabel = "调整";
+            actionLabel = "音量调节";
         } else if (!status.outputSelectable()) {
             title = "检测到多个耳机输出";
             detail = "请暂时只保留一个耳机连接。";
             accent = Ui.DANGER;
+            dotColor = Ui.DANGER;
+            iconResource = R.drawable.ic_output_headphones;
         } else if (status.headsetConnected() && !status.deviceVerified()) {
             title = "耳机已连接 · 播放前需要确认";
             detail = "做一次低音量测试，确认声音不会漏到扬声器。";
             accent = Ui.WARM;
+            dotColor = Ui.ACID;
+            iconResource = R.drawable.ic_output_headphones;
             action = () -> startActivity(new Intent(this, MainActivity.class));
             actionLabel = "确认耳机";
         } else if (status.headsetConnected()) {
             title = "耳机播放";
-            detail = "已连接耳机 · 断连会立即静音";
-            accent = Ui.ACID;
+            detail = "已验证耳机路径 · 断连立即静音";
+            accent = Ui.WARM;
+            dotColor = Ui.WARM;
+            iconResource = R.drawable.ic_output_headphones;
+            action = () -> startActivity(new Intent(Settings.ACTION_SOUND_SETTINGS));
+            actionLabel = "音量调节";
         } else {
             title = "扬声器播放";
-            detail = "当前无耳机 · 跟随媒体音量";
+            detail = "内置音效引擎 · 跟随系统音量";
             accent = Ui.ACID;
+            dotColor = Ui.WARM;
             action = () -> startActivity(new Intent(Settings.ACTION_SOUND_SETTINGS));
-            actionLabel = "调整音量";
+            actionLabel = "音量调节";
         }
-        return outputStatusCard(title, detail, accent, actionLabel, action);
+        return outputStatusCard(
+                title, detail, accent, dotColor, iconResource, actionLabel, action);
     }
 
     private View alarmPermissionBanner(ReadinessChecker.Status status) {
@@ -1041,15 +1102,29 @@ public final class HomeActivity extends Activity {
     }
 
     private View outputStatusCard(
-            String title, String detail, int accent, String actionLabel, Runnable action) {
+            String title,
+            String detail,
+            int accent,
+            int dotColor,
+            int iconResource,
+            String actionLabel,
+            Runnable action) {
         LinearLayout card = Ui.card(this, Ui.GLASS);
         card.setPadding(Ui.dp(this, 12), Ui.dp(this, 11), Ui.dp(this, 12), Ui.dp(this, 11));
         card.setBackground(Ui.round(this, Ui.GLASS, 19, Ui.LINE));
         LinearLayout row = new LinearLayout(this);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        TextView icon = Ui.text(this, "♪", 18, accent, Ui.bold());
-        icon.setGravity(Gravity.CENTER);
-        icon.setBackground(Ui.round(this, Ui.ACID_SOFT, 999, accent));
+        ImageView icon = new ImageView(this);
+        icon.setImageResource(iconResource);
+        icon.setImageTintList(ColorStateList.valueOf(accent));
+        icon.setPadding(
+                Ui.dp(this, 9), Ui.dp(this, 9), Ui.dp(this, 9), Ui.dp(this, 9));
+        icon.setBackground(
+                Ui.round(
+                        this,
+                        Color.argb(58, Color.red(accent), Color.green(accent), Color.blue(accent)),
+                        999,
+                        Color.TRANSPARENT));
         LinearLayout.LayoutParams iconParams =
                 new LinearLayout.LayoutParams(Ui.dp(this, 36), Ui.dp(this, 36));
         iconParams.rightMargin = Ui.dp(this, 11);
@@ -1057,7 +1132,16 @@ public final class HomeActivity extends Activity {
 
         LinearLayout copy = new LinearLayout(this);
         copy.setOrientation(LinearLayout.VERTICAL);
-        copy.addView(Ui.text(this, title + "  •", 13, Ui.PAPER, Ui.bold()));
+        LinearLayout titleRow = new LinearLayout(this);
+        titleRow.setGravity(Gravity.CENTER_VERTICAL);
+        titleRow.addView(Ui.text(this, title, 13, Ui.PAPER, Ui.bold()));
+        View dot = new View(this);
+        dot.setBackground(Ui.round(this, dotColor, 999, Color.TRANSPARENT));
+        LinearLayout.LayoutParams dotParams =
+                new LinearLayout.LayoutParams(Ui.dp(this, 6), Ui.dp(this, 6));
+        dotParams.leftMargin = Ui.dp(this, 7);
+        titleRow.addView(dot, dotParams);
+        copy.addView(titleRow);
         TextView description = Ui.text(this, detail, 10, Ui.MUTED, Typeface.DEFAULT);
         description.setPadding(0, Ui.dp(this, 2), 0, 0);
         copy.addView(description);
@@ -1211,46 +1295,113 @@ public final class HomeActivity extends Activity {
         return row;
     }
 
-    private OptionSelector optionSelector(String title, String[] values, int selectedIndex) {
-        OptionSelector selector = new OptionSelector();
-        selector.index = Math.max(0, Math.min(selectedIndex, values.length - 1));
+    private TimerSelector timerSelector(int savedMinutes) {
+        TimerSelector selector = new TimerSelector();
+        selector.minutes = normalizeTimerMinutes(savedMinutes);
         selector.root = new LinearLayout(this);
         selector.root.setOrientation(LinearLayout.VERTICAL);
+
         LinearLayout heading = new LinearLayout(this);
         heading.setGravity(Gravity.CENTER_VERTICAL);
         heading.addView(
-                Ui.text(this, title, 12, Ui.MUTED, Typeface.DEFAULT),
+                Ui.text(this, "定时关闭时长", 12, Ui.MUTED, Typeface.DEFAULT),
                 new LinearLayout.LayoutParams(0, -2, 1));
-        TextView value = Ui.text(this, values[selector.index], 12, Ui.PAPER, Ui.medium());
+        TextView value =
+                Ui.text(this, selector.minutes + " 分钟", 12, Ui.PAPER, Ui.bold());
         heading.addView(value);
         selector.root.addView(heading);
-        selector.root.addView(Ui.space(this, 8));
+        selector.root.addView(Ui.space(this, 7));
 
-        HorizontalScrollView scroll = new HorizontalScrollView(this);
-        scroll.setHorizontalScrollBarEnabled(false);
-        LinearLayout choices = new LinearLayout(this);
-        choices.setOrientation(LinearLayout.HORIZONTAL);
-        TextView[] views = new TextView[values.length];
-        for (int i = 0; i < values.length; i++) {
-            TextView choice = Ui.choice(this, values[i], i == selector.index);
+        SeekBar slider = new SeekBar(this);
+        slider.setMax(23);
+        slider.setProgress((selector.minutes - 5) / 5);
+        slider.setSplitTrack(false);
+        slider.setProgressTintList(ColorStateList.valueOf(Ui.ACID));
+        slider.setProgressBackgroundTintList(ColorStateList.valueOf(Ui.LINE));
+        slider.setThumbTintList(ColorStateList.valueOf(Ui.ACID));
+        slider.setOnSeekBarChangeListener(
+                new SeekBar.OnSeekBarChangeListener() {
+                    @Override
+                    public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                        selector.minutes = 5 + progress * 5;
+                        value.setText(selector.minutes + " 分钟");
+                    }
+
+                    @Override
+                    public void onStartTrackingTouch(SeekBar seekBar) {}
+
+                    @Override
+                    public void onStopTrackingTouch(SeekBar seekBar) {}
+                });
+        selector.root.addView(slider, new LinearLayout.LayoutParams(-1, Ui.dp(this, 34)));
+
+        LinearLayout scale = new LinearLayout(this);
+        scale.setGravity(Gravity.CENTER_VERTICAL);
+        addTimerScaleLabel(scale, "5min", Gravity.START);
+        addTimerScaleLabel(scale, "30min", Gravity.CENTER);
+        addTimerScaleLabel(scale, "60min", Gravity.CENTER);
+        addTimerScaleLabel(scale, "120min", Gravity.END);
+        selector.root.addView(scale);
+        return selector;
+    }
+
+    private void addTimerScaleLabel(LinearLayout row, String label, int gravity) {
+        TextView text = Ui.text(this, label, 10, Color.rgb(101, 116, 139), Typeface.MONOSPACE);
+        text.setGravity(gravity);
+        row.addView(text, new LinearLayout.LayoutParams(0, -2, 1));
+    }
+
+    private FadeSelector fadeSelector(int savedSeconds) {
+        FadeSelector selector = new FadeSelector();
+        selector.seconds = savedSeconds == 0 || savedSeconds == 30 ? savedSeconds : 15;
+        selector.root = new LinearLayout(this);
+        selector.root.setOrientation(LinearLayout.VERTICAL);
+
+        LinearLayout heading = new LinearLayout(this);
+        heading.setGravity(Gravity.CENTER_VERTICAL);
+        heading.addView(
+                Ui.text(this, "停止方式", 12, Ui.MUTED, Typeface.DEFAULT),
+                new LinearLayout.LayoutParams(0, -2, 1));
+        TextView value =
+                Ui.text(this, fadeSummary(selector.seconds), 12, Ui.PAPER, Ui.bold());
+        heading.addView(value);
+        selector.root.addView(heading);
+        selector.root.addView(Ui.space(this, 9));
+
+        int[] seconds = {15, 30, 0};
+        String[] labels = {"15s 柔和渐隐", "30s 极缓平滑", "立即停止"};
+        TextView[] choices = new TextView[seconds.length];
+        LinearLayout row = new LinearLayout(this);
+        for (int i = 0; i < seconds.length; i++) {
+            TextView choice = Ui.choice(this, labels[i], selector.seconds == seconds[i]);
+            choice.setTextSize(10);
+            choice.setSingleLine(true);
             int index = i;
             choice.setOnClickListener(
                     v -> {
-                        selector.index = index;
-                        value.setText(values[index]);
-                        for (int j = 0; j < views.length; j++) {
-                            Ui.setChoiceSelected(views[j], j == index);
+                        selector.seconds = seconds[index];
+                        value.setText(fadeSummary(selector.seconds));
+                        for (int j = 0; j < choices.length; j++) {
+                            Ui.setChoiceSelected(choices[j], j == index);
                         }
                     });
             LinearLayout.LayoutParams params =
-                    new LinearLayout.LayoutParams(-2, Ui.dp(this, 40));
+                    new LinearLayout.LayoutParams(0, Ui.dp(this, 42), 1);
             if (i > 0) params.leftMargin = Ui.dp(this, 7);
-            choices.addView(choice, params);
-            views[i] = choice;
+            row.addView(choice, params);
+            choices[i] = choice;
         }
-        scroll.addView(choices, new HorizontalScrollView.LayoutParams(-2, -1));
-        selector.root.addView(scroll, new LinearLayout.LayoutParams(-1, Ui.dp(this, 40)));
+        selector.root.addView(row);
         return selector;
+    }
+
+    private static int normalizeTimerMinutes(int minutes) {
+        if (minutes < 5 || minutes > 120) return 30;
+        return Math.max(5, Math.min(120, Math.round(minutes / 5f) * 5));
+    }
+
+    private static String fadeSummary(int seconds) {
+        return seconds == 0 ? "立即停止" : seconds + " 秒渐隐";
     }
 
     private TextView hero(String value, int size) {
@@ -1260,14 +1411,14 @@ public final class HomeActivity extends Activity {
         return hero;
     }
 
-    private static int indexOf(int[] values, int target) {
-        for (int i = 0; i < values.length; i++) if (values[i] == target) return i;
-        return 0;
+    private static final class TimerSelector {
+        private LinearLayout root;
+        private int minutes;
     }
 
-    private static final class OptionSelector {
+    private static final class FadeSelector {
         private LinearLayout root;
-        private int index;
+        private int seconds;
     }
 
     private static String repeatSummary(int mask) {

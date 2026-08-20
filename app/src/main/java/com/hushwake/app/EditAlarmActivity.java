@@ -9,7 +9,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowInsets;
@@ -209,11 +208,6 @@ public final class EditAlarmActivity extends Activity {
                         Typeface.DEFAULT);
         media.setPadding(0, Ui.dp(this, 14), 0, 0);
         soundCard.addView(media);
-        Button openVolume = Ui.button(this, "音量与输出设置", false);
-        Ui.marginTop(openVolume, 14);
-        openVolume.setOnClickListener(
-                v -> startActivity(new Intent(Settings.ACTION_SOUND_SETTINGS)));
-        soundCard.addView(openVolume);
         root.addView(soundCard);
         root.addView(Ui.space(this, 18));
 

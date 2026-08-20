@@ -98,6 +98,7 @@ foreach ($screen in $screens) {
 }
 
 Assert-UiText "声音库"
+Assert-UiText "左右滑动选择 8 种原声"
 Tap-UiText "▶  播放助眠声"
 Assert-UiText "Ⅱ  暂停助眠声"
 Assert-UiText "停止"
@@ -121,6 +122,7 @@ Tap-UiText "完成"
 Invoke-Adb -Arguments @("shell", "input", "swipe", "540", "2050", "540", "450", "500") | Out-Null
 Start-Sleep -Milliseconds 500
 Assert-UiText "铃声库"
+Assert-UiTextAbsent "音量与输出设置"
 Assert-UiText "保存闹钟"
 Invoke-Adb -Arguments @("shell", "input", "keyevent", "BACK") | Out-Null
 Start-Sleep -Milliseconds 500
@@ -131,4 +133,4 @@ if (-not $appProcessId -or $crashLog -match "Process: $([regex]::Escape($package
     throw "HushWake smoke test found a crash or missing process`n$crashLog"
 }
 
-Write-Output "PASS: onboarding, alarm and sleep pages, six-sound libraries, sleep controls, alarm time wheels, and editor are alive with PID $appProcessId"
+Write-Output "PASS: onboarding, alarm and sleep pages, eight-sound library, sleep controls, alarm time wheels, and editor are alive with PID $appProcessId"

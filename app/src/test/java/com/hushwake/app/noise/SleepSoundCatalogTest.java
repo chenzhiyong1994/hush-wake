@@ -6,11 +6,13 @@ import org.junit.Test;
 
 public final class SleepSoundCatalogTest {
     @Test
-    public void curatedLibraryContainsSixRealRecordings() {
-        assertEquals(6, SleepSoundCatalog.all().size());
+    public void curatedLibraryContainsEightRealRecordings() {
+        assertEquals(8, SleepSoundCatalog.all().size());
         assertEquals("morning", SleepSoundCatalog.normalizeId("morning"));
         assertEquals("crickets", SleepSoundCatalog.normalizeId("crickets"));
         assertEquals("wind", SleepSoundCatalog.normalizeId("wind"));
+        assertEquals("ocean", SleepSoundCatalog.normalizeId("ocean"));
+        assertEquals("thunder", SleepSoundCatalog.normalizeId("thunder"));
     }
 
     @Test
