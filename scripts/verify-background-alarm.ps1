@@ -82,8 +82,12 @@ if ($initial.SelectSingleNode("//node[@text='HUSHWAKE  /  悄醒']")) {
 Tap-UiText -Text "+  新建闹钟"
 Find-UiNode -Text "新闹钟" | Out-Null
 Tap-UiText -Text "保存闹钟"
-Find-UiNode -Text "还需关闭电池优化" | Out-Null
-Tap-UiText -Text "立即处理"
+$afterSave = Get-UiXml
+if ($afterSave.SelectSingleNode("//node[@text='立即处理']")) {
+    throw "Saving an alarm forced a wake-permission dialog instead of leaving an inline reminder."
+}
+Find-UiNode -Text "电池优化可能拦截后台唤醒" | Out-Null
+Tap-UiText -Text "去允许"
 Find-UiNode -Text "Allow" | Out-Null
 Tap-UiText -Text "Allow"
 $powerAllowlist = (Invoke-Adb -Arguments @("shell", "dumpsys", "deviceidle", "whitelist")) -join "`n"
@@ -94,8 +98,12 @@ if ($powerAllowlist -notmatch [regex]::Escape($packageName)) {
 Invoke-Adb -Arguments @("shell", "dumpsys", "deviceidle", "whitelist", "-$packageName") | Out-Null
 Tap-FirstAlarmSwitch
 Tap-FirstAlarmSwitch
-Find-UiNode -Text "还需关闭电池优化" | Out-Null
-Tap-UiText -Text "立即处理"
+$afterEnable = Get-UiXml
+if ($afterEnable.SelectSingleNode("//node[@text='立即处理']")) {
+    throw "Enabling an alarm forced a wake-permission dialog instead of leaving an inline reminder."
+}
+Find-UiNode -Text "电池优化可能拦截后台唤醒" | Out-Null
+Tap-UiText -Text "去允许"
 Find-UiNode -Text "Allow" | Out-Null
 Tap-UiText -Text "Allow"
 

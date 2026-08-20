@@ -10,7 +10,6 @@ import java.util.Base64;
 public final class AppPreferences {
     private static final String NAME = "hushwake_preferences";
     private static final String KEY_INSTALL_SALT = "install_salt";
-    private static final String KEY_ALARM_WAKE_AUDIT_PENDING = "alarm_wake_audit_pending";
     private static final String KEY_OEM_AUTOSTART_CONFIRMED_FOR = "oem_autostart_confirmed_for";
     private static final String KEY_OEM_AUTOSTART_CONFIRMATION_PENDING =
             "oem_autostart_confirmation_pending";
@@ -35,16 +34,6 @@ public final class AppPreferences {
 
     public void setVibrationWarningAcknowledged(boolean acknowledged) {
         values.edit().putBoolean("vibration_warning_acknowledged", acknowledged).apply();
-    }
-
-    public void requestAlarmWakeAudit() {
-        values.edit().putBoolean(KEY_ALARM_WAKE_AUDIT_PENDING, true).commit();
-    }
-
-    public boolean consumeAlarmWakeAuditRequest() {
-        if (!values.getBoolean(KEY_ALARM_WAKE_AUDIT_PENDING, false)) return false;
-        values.edit().remove(KEY_ALARM_WAKE_AUDIT_PENDING).commit();
-        return true;
     }
 
     public boolean oemAutostartConfirmed(String manufacturer) {

@@ -5,6 +5,7 @@ import android.app.AlertDialog;
 import android.content.Intent;
 import android.graphics.Typeface;
 import android.media.AudioManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -30,6 +31,7 @@ import com.hushwake.app.audio.PrivatePlaybackEngine;
 import com.hushwake.app.data.AlarmRepository;
 import com.hushwake.app.data.AppPreferences;
 import com.hushwake.app.domain.Alarm;
+import com.hushwake.app.reliability.OemAutostartNavigator;
 import com.hushwake.app.ui.Ui;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -39,6 +41,7 @@ public final class EditAlarmActivity extends Activity {
     public static final String EXTRA_ALARM_ID = "edit_alarm_id";
 
     private AlarmRepository repository;
+    private AppPreferences preferences;
     private Alarm existing;
     private int hour;
     private int minute;
@@ -50,11 +53,14 @@ public final class EditAlarmActivity extends Activity {
     private String selectedSoundId = "soft_chime";
     private final Handler previewHandler = new Handler(Looper.getMainLooper());
     private PrivatePlaybackEngine previewEngine;
+    private View oemAutostartWarning;
+    private boolean oemConfirmationDialogVisible;
 
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         repository = new AlarmRepository(this);
+        preferences = new AppPreferences(this);
         long id = getIntent().getLongExtra(EXTRA_ALARM_ID, 0L);
         existing = id == 0L ? null : repository.find(id);
         AlarmTimeSelection suggested = AlarmTimeSelection.suggested(LocalTime.now());
@@ -88,6 +94,12 @@ public final class EditAlarmActivity extends Activity {
                         Ui.display());
         title.setPadding(0, Ui.dp(this, 10), 0, Ui.dp(this, 22));
         root.addView(title);
+
+        if (!preferences.oemAutostartConfirmed(Build.MANUFACTURER)) {
+            oemAutostartWarning = buildOemAutostartWarning();
+            root.addView(oemAutostartWarning);
+            root.addView(Ui.space(this, 14));
+        }
 
         LinearLayout timeCard = Ui.card(this, Ui.RAISED);
         timeCard.setPadding(
@@ -192,6 +204,31 @@ public final class EditAlarmActivity extends Activity {
         return scroll;
     }
 
+    private View buildOemAutostartWarning() {
+        LinearLayout card = Ui.card(this, Ui.PANEL);
+        card.setPadding(
+                Ui.dp(this, 15), Ui.dp(this, 13), Ui.dp(this, 15), Ui.dp(this, 13));
+        card.setBackground(Ui.round(this, Ui.PANEL, 20, Ui.ACID));
+        LinearLayout heading = new LinearLayout(this);
+        heading.setGravity(Gravity.CENTER_VERTICAL);
+        TextView title = Ui.text(this, "●  自启动尚未确认", 14, Ui.ACID, Ui.medium());
+        heading.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
+        TextView action = Ui.text(this, "去设置  ›", 13, Ui.ACID, Typeface.DEFAULT_BOLD);
+        heading.addView(action);
+        card.addView(heading);
+        TextView detail =
+                Ui.text(
+                        this,
+                        "未开启时，收起或退出应用后闹铃可能无法唤起。",
+                        12,
+                        Ui.PAPER,
+                        Typeface.DEFAULT);
+        detail.setPadding(0, Ui.dp(this, 5), 0, 0);
+        card.addView(detail);
+        card.setOnClickListener(v -> requestOemAutostart());
+        return card;
+    }
+
     private void bind(Alarm alarm) {
         updateTime();
         Alarm source = alarm == null ? Alarm.newDefault(hour, minute, System.currentTimeMillis()) : alarm;
@@ -221,7 +258,6 @@ public final class EditAlarmActivity extends Activity {
         AlarmScheduler scheduler = new AlarmScheduler(this);
         scheduler.cancel(saved.id());
         AlarmScheduler.ScheduleResult result = scheduler.schedule(saved);
-        AppPreferences preferences = new AppPreferences(this);
         preferences.setLastScheduleIssue(
                 result.result() == AlarmScheduler.Result.SCHEDULED
                                 || result.result() == AlarmScheduler.Result.DISABLED
@@ -229,8 +265,51 @@ public final class EditAlarmActivity extends Activity {
                         : result.detail());
         Toast.makeText(this, result.detail(), Toast.LENGTH_SHORT).show();
         setResult(RESULT_OK);
-        preferences.requestAlarmWakeAudit();
         finish();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        showPendingOemAutostartConfirmation();
+    }
+
+    private void requestOemAutostart() {
+        preferences.beginOemAutostartConfirmation(Build.MANUFACTURER);
+        if (OemAutostartNavigator.open(this)) return;
+        preferences.finishOemAutostartConfirmation(Build.MANUFACTURER, false);
+        Toast.makeText(this, "系统没有提供可打开的自启动或电池设置入口。", Toast.LENGTH_LONG).show();
+    }
+
+    private void showPendingOemAutostartConfirmation() {
+        if (oemConfirmationDialogVisible
+                || preferences == null
+                || !preferences.oemAutostartConfirmationPending(Build.MANUFACTURER)) {
+            return;
+        }
+        oemConfirmationDialogVisible = true;
+        AlertDialog dialog =
+                new AlertDialog.Builder(this)
+                        .setTitle("确认厂商自启动")
+                        .setMessage(
+                                "Android 没有接口读取这个厂商开关。请确认你刚才已经为“悄醒”开启“自启动”“允许后台启动”或同等选项。")
+                        .setPositiveButton(
+                                "已经开启",
+                                (ignoredDialog, which) -> {
+                                    preferences.finishOemAutostartConfirmation(
+                                            Build.MANUFACTURER, true);
+                                    if (oemAutostartWarning != null) {
+                                        oemAutostartWarning.setVisibility(View.GONE);
+                                    }
+                                })
+                        .setNegativeButton(
+                                "还没开启",
+                                (ignoredDialog, which) ->
+                                        preferences.finishOemAutostartConfirmation(
+                                                Build.MANUFACTURER, false))
+                        .create();
+        dialog.setOnDismissListener(ignored -> oemConfirmationDialogVisible = false);
+        dialog.show();
     }
 
     private void confirmDelete() {
