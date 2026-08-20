@@ -12,6 +12,7 @@ import android.os.Looper;
 import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
+import android.view.WindowInsets;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.HorizontalScrollView;
@@ -73,26 +74,40 @@ public final class EditAlarmActivity extends Activity {
 
     private View buildScreen() {
         ScrollView scroll = new ScrollView(this);
-        scroll.setBackgroundColor(Ui.INK);
+        scroll.setBackground(Ui.pageBackground(this));
         scroll.setFillViewport(true);
+        scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        if (Build.VERSION.SDK_INT >= 35) {
+            scroll.setOnApplyWindowInsetsListener(
+                    (view, insets) -> {
+                        android.graphics.Insets bars =
+                                insets.getInsets(WindowInsets.Type.statusBars());
+                        view.setPadding(0, bars.top, 0, 0);
+                        return insets;
+                    });
+        }
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(Ui.dp(this, 22), Ui.dp(this, 20), Ui.dp(this, 22), Ui.dp(this, 48));
+        root.setPadding(Ui.dp(this, 20), Ui.dp(this, 16), Ui.dp(this, 20), Ui.dp(this, 40));
         scroll.addView(root, new ScrollView.LayoutParams(-1, -2));
 
-        TextView back = Ui.text(this, "←  返回闹钟", 14, Ui.ACID, Typeface.DEFAULT_BOLD);
-        back.setPadding(0, Ui.dp(this, 6), 0, Ui.dp(this, 20));
+        TextView back = Ui.text(this, "‹  返回闹钟", 13, Ui.MUTED, Ui.medium());
+        back.setGravity(Gravity.CENTER);
+        back.setPadding(
+                Ui.dp(this, 12), Ui.dp(this, 8), Ui.dp(this, 12), Ui.dp(this, 8));
+        back.setBackground(Ui.round(this, Ui.GLASS, 16, Ui.LINE));
         back.setOnClickListener(v -> finish());
-        root.addView(back);
+        root.addView(back, new LinearLayout.LayoutParams(-2, -2));
+        root.addView(Ui.space(this, 20));
         root.addView(Ui.eyebrow(this, existing == null ? "新闹钟" : "编辑闹钟"));
         TextView title =
                 Ui.text(
                         this,
                         existing == null ? "几点叫醒你？" : "调整这次提醒",
-                        34,
+                        29,
                         Ui.PAPER,
-                        Ui.display());
-        title.setPadding(0, Ui.dp(this, 10), 0, Ui.dp(this, 22));
+                        Ui.bold());
+        title.setPadding(0, Ui.dp(this, 6), 0, Ui.dp(this, 18));
         root.addView(title);
 
         if (!preferences.oemAutostartConfirmed(Build.MANUFACTURER)) {
@@ -102,6 +117,13 @@ public final class EditAlarmActivity extends Activity {
         }
 
         LinearLayout timeCard = Ui.card(this, Ui.RAISED);
+        timeCard.setBackground(
+                Ui.gradient(
+                        this,
+                        Ui.ACID_SOFT,
+                        Ui.PANEL,
+                        26,
+                        android.graphics.Color.rgb(100, 72, 35)));
         timeCard.setPadding(
                 Ui.dp(this, 20), Ui.dp(this, 16), Ui.dp(this, 20), Ui.dp(this, 16));
         TextView timeLabel = Ui.text(this, "唤醒时间", 12, Ui.ACID, Ui.medium());
@@ -109,7 +131,7 @@ public final class EditAlarmActivity extends Activity {
         timeCard.addView(timeLabel);
         LinearLayout timeRow = new LinearLayout(this);
         timeRow.setGravity(Gravity.CENTER_VERTICAL);
-        timeValue = Ui.text(this, "00:00", 50, Ui.PAPER, Ui.display());
+        timeValue = Ui.text(this, "00:00", 52, Ui.PAPER, Ui.display());
         timeRow.addView(timeValue, new LinearLayout.LayoutParams(0, -2, 1));
         TextView change = Ui.text(this, "调整  ›", 14, Ui.ACID, Typeface.DEFAULT_BOLD);
         timeRow.addView(change);
@@ -121,17 +143,21 @@ public final class EditAlarmActivity extends Activity {
         root.addView(timeCard);
         root.addView(Ui.space(this, 14));
 
-        LinearLayout schedule = Ui.card(this, Ui.PANEL);
+        LinearLayout schedule = Ui.card(this, Ui.GLASS);
         schedule.addView(sectionTitle("时间与重复", "选择日期规则，留空就是仅响一次。"));
         label = new EditText(this);
         label.setHint("标签（可选）");
         label.setHintTextColor(Ui.MUTED);
         label.setTextColor(Ui.PAPER);
-        label.setTextSize(16);
+        label.setTextSize(15);
         label.setSingleLine(true);
         label.setMaxLines(1);
-        label.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Ui.LINE));
-        label.setPadding(0, Ui.dp(this, 14), 0, Ui.dp(this, 10));
+        label.setBackground(Ui.round(this, Ui.RAISED, 16, Ui.LINE));
+        label.setPadding(
+                Ui.dp(this, 13), Ui.dp(this, 11), Ui.dp(this, 13), Ui.dp(this, 11));
+        LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(-1, -2);
+        labelParams.topMargin = Ui.dp(this, 15);
+        label.setLayoutParams(labelParams);
         schedule.addView(label);
         TextView repeatLabel = Ui.text(this, "重复", 12, Ui.MUTED, Ui.medium());
         repeatLabel.setPadding(0, Ui.dp(this, 16), 0, Ui.dp(this, 7));
@@ -152,7 +178,7 @@ public final class EditAlarmActivity extends Activity {
         root.addView(schedule);
         root.addView(Ui.space(this, 14));
 
-        LinearLayout soundCard = Ui.card(this, Ui.PANEL);
+        LinearLayout soundCard = Ui.card(this, Ui.GLASS);
         soundCard.addView(sectionTitle("铃声库", "左右滑动浏览真实录音；点选试听，再点一次重播。"));
         HorizontalScrollView soundStrip = new HorizontalScrollView(this);
         soundStrip.setHorizontalScrollBarEnabled(false);
@@ -183,7 +209,7 @@ public final class EditAlarmActivity extends Activity {
                         Typeface.DEFAULT);
         media.setPadding(0, Ui.dp(this, 14), 0, 0);
         soundCard.addView(media);
-        Button openVolume = Ui.button(this, "调整手机媒体音量", false);
+        Button openVolume = Ui.button(this, "音量与输出设置", false);
         Ui.marginTop(openVolume, 14);
         openVolume.setOnClickListener(
                 v -> startActivity(new Intent(Settings.ACTION_SOUND_SETTINGS)));
@@ -205,15 +231,15 @@ public final class EditAlarmActivity extends Activity {
     }
 
     private View buildOemAutostartWarning() {
-        LinearLayout card = Ui.card(this, Ui.PANEL);
+        LinearLayout card = Ui.card(this, Ui.GLASS);
         card.setPadding(
                 Ui.dp(this, 15), Ui.dp(this, 13), Ui.dp(this, 15), Ui.dp(this, 13));
-        card.setBackground(Ui.round(this, Ui.PANEL, 20, Ui.ACID));
+        card.setBackground(Ui.round(this, Ui.GLASS, 20, Ui.ACID));
         LinearLayout heading = new LinearLayout(this);
         heading.setGravity(Gravity.CENTER_VERTICAL);
-        TextView title = Ui.text(this, "●  自启动尚未确认", 14, Ui.ACID, Ui.medium());
+        TextView title = Ui.text(this, "!  自启动尚未确认", 13, Ui.ACID, Ui.bold());
         heading.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
-        TextView action = Ui.text(this, "去设置  ›", 13, Ui.ACID, Typeface.DEFAULT_BOLD);
+        TextView action = Ui.text(this, "去设置  ›", 12, Ui.ACID, Ui.bold());
         heading.addView(action);
         card.addView(heading);
         TextView detail =
@@ -221,7 +247,7 @@ public final class EditAlarmActivity extends Activity {
                         this,
                         "未开启时，收起或退出应用后闹铃可能无法唤起。",
                         12,
-                        Ui.PAPER,
+                        Ui.MUTED,
                         Typeface.DEFAULT);
         detail.setPadding(0, Ui.dp(this, 5), 0, 0);
         card.addView(detail);
@@ -310,10 +336,12 @@ public final class EditAlarmActivity extends Activity {
                         .create();
         dialog.setOnDismissListener(ignored -> oemConfirmationDialogVisible = false);
         dialog.show();
+        Ui.styleDialog(dialog);
     }
 
     private void confirmDelete() {
-        new AlertDialog.Builder(this)
+        AlertDialog dialog =
+                new AlertDialog.Builder(this)
                 .setTitle("删除这个闹钟？")
                 .setMessage("未来调度会取消；如果它正在响，也会立即停止。")
                 .setPositiveButton(
@@ -326,7 +354,9 @@ public final class EditAlarmActivity extends Activity {
                             finish();
                         })
                 .setNegativeButton("取消", null)
-                .show();
+                .create();
+        dialog.show();
+        Ui.styleDialog(dialog);
     }
 
     private void stopIfRinging(long alarmId) {
@@ -342,7 +372,7 @@ public final class EditAlarmActivity extends Activity {
     private View sectionTitle(String title, String detail) {
         LinearLayout copy = new LinearLayout(this);
         copy.setOrientation(LinearLayout.VERTICAL);
-        copy.addView(Ui.text(this, title, 19, Ui.PAPER, Ui.medium()));
+        copy.addView(Ui.text(this, title, 18, Ui.PAPER, Ui.bold()));
         TextView description = Ui.text(this, detail, 12, Ui.MUTED, Typeface.DEFAULT);
         description.setPadding(0, Ui.dp(this, 3), 0, 0);
         copy.addView(description);
@@ -434,14 +464,7 @@ public final class EditAlarmActivity extends Activity {
                                 })
                         .create();
         dialog.setOnShowListener(
-                ignored -> {
-                    if (dialog.getWindow() != null) {
-                        dialog.getWindow()
-                                .setBackgroundDrawable(Ui.round(this, Ui.PANEL, 24, Ui.LINE));
-                    }
-                    dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(Ui.ACID);
-                    dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(Ui.MUTED);
-                });
+                ignored -> Ui.styleDialog(dialog));
         dialog.show();
     }
 
@@ -491,7 +514,7 @@ public final class EditAlarmActivity extends Activity {
                         this,
                         item.symbol() + "\n" + item.label() + "\n" + item.note(),
                         13,
-                        selected ? Ui.INK : Ui.PAPER,
+                        selected ? Ui.ACID : Ui.PAPER,
                         Ui.medium());
         choice.setGravity(Gravity.CENTER);
         choice.setLineSpacing(Ui.dp(this, 2), 1f);
@@ -499,7 +522,7 @@ public final class EditAlarmActivity extends Activity {
         choice.setBackground(
                 Ui.round(
                         this,
-                        selected ? Ui.ACID : Ui.RAISED,
+                        selected ? Ui.ACID_SOFT : Ui.RAISED,
                         20,
                         selected ? Ui.ACID : Ui.LINE));
         return choice;
@@ -508,11 +531,11 @@ public final class EditAlarmActivity extends Activity {
     private void setAlarmSoundChoiceSelected(
             TextView choice, AlarmSoundCatalog.Item item, boolean selected) {
         choice.setText(item.symbol() + "\n" + item.label() + "\n" + item.note());
-        choice.setTextColor(selected ? Ui.INK : Ui.PAPER);
+        choice.setTextColor(selected ? Ui.ACID : Ui.PAPER);
         choice.setBackground(
                 Ui.round(
                         this,
-                        selected ? Ui.ACID : Ui.RAISED,
+                        selected ? Ui.ACID_SOFT : Ui.RAISED,
                         20,
                         selected ? Ui.ACID : Ui.LINE));
     }

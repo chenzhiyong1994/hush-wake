@@ -1,24 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.HushWake" parent="android:style/Theme.Material.NoActionBar">
-        <item name="android:fontFamily">sans</item>
+        <item name="android:fontFamily">sans-serif</item>
         <item name="android:windowLightStatusBar">false</item>
-        <item name="android:statusBarColor">#09110F</item>
-        <item name="android:navigationBarColor">#09110F</item>
-        <item name="android:colorAccent">#F6BF6F</item>
+        <item name="android:statusBarColor">#0B0E14</item>
+        <item name="android:navigationBarColor">#0B0E14</item>
+        <item name="android:colorAccent">#F5B054</item>
         <item name="android:alertDialogTheme">@style/Theme.HushWake.Dialog</item>
-        <item name="android:windowBackground">#09110F</item>
-        <item name="android:textColorPrimary">#F2F7ED</item>
-        <item name="android:textColorSecondary">#A8B8B1</item>
+        <item name="android:windowBackground">#0B0E14</item>
+        <item name="android:textColorPrimary">#F6F7FA</item>
+        <item name="android:textColorSecondary">#8E9BAE</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowLightNavigationBar">false</item>
         <item name="android:windowActionModeOverlay">true</item>
     </style>
 
     <style name="Theme.HushWake.Dialog" parent="android:style/Theme.Material.Dialog.Alert">
-        <item name="android:windowBackground">#11191A</item>
-        <item name="android:colorAccent">#F6BF6F</item>
-        <item name="android:textColorPrimary">#F5F2E9</item>
-        <item name="android:textColorSecondary">#94A4A0</item>
+        <item name="android:windowBackground">#121721</item>
+        <item name="android:colorAccent">#F5B054</item>
+        <item name="android:textColorPrimary">#F6F7FA</item>
+        <item name="android:textColorSecondary">#8E9BAE</item>
+        <item name="android:backgroundDimAmount">0.72</item>
+        <item name="android:windowElevation">12dp</item>
     </style>
 </resources>

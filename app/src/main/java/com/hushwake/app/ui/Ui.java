@@ -1,5 +1,6 @@
 package com.hushwake.app.ui;
 
+import android.app.AlertDialog;
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
@@ -14,18 +15,25 @@ import android.widget.LinearLayout;
 import android.widget.ArrayAdapter;
 import android.widget.Space;
 import android.widget.Spinner;
+import android.widget.Switch;
 import android.widget.TextView;
 
 public final class Ui {
-    public static final int INK = Color.rgb(9, 15, 16);
-    public static final int PANEL = Color.rgb(17, 25, 26);
-    public static final int RAISED = Color.rgb(24, 35, 35);
-    public static final int LINE = Color.rgb(42, 57, 56);
-    public static final int PAPER = Color.rgb(245, 242, 233);
-    public static final int MUTED = Color.rgb(148, 164, 160);
-    public static final int ACID = Color.rgb(246, 191, 111);
-    public static final int WARM = Color.rgb(126, 193, 176);
-    public static final int DANGER = Color.rgb(242, 124, 112);
+    public static final int INK_DEEP = Color.rgb(7, 9, 14);
+    public static final int INK = Color.rgb(11, 14, 20);
+    public static final int PANEL = Color.rgb(18, 23, 33);
+    public static final int GLASS = Color.rgb(23, 29, 42);
+    public static final int RAISED = Color.rgb(31, 41, 59);
+    public static final int LINE = Color.rgb(42, 53, 72);
+    public static final int PAPER = Color.rgb(246, 247, 250);
+    public static final int MUTED = Color.rgb(142, 155, 174);
+    public static final int ACID = Color.rgb(245, 176, 84);
+    public static final int ACID_DARK = Color.rgb(235, 137, 8);
+    public static final int ACID_SOFT = Color.rgb(49, 38, 23);
+    public static final int WARM = Color.rgb(93, 214, 194);
+    public static final int BLUE = Color.rgb(56, 189, 248);
+    public static final int VIOLET = Color.rgb(139, 133, 255);
+    public static final int DANGER = Color.rgb(255, 118, 108);
 
     private Ui() {}
 
@@ -46,11 +54,15 @@ public final class Ui {
     }
 
     public static Typeface display() {
-        return Typeface.create("sans-serif", Typeface.NORMAL);
+        return Typeface.create("sans-serif-light", Typeface.NORMAL);
     }
 
     public static Typeface medium() {
         return Typeface.create("sans-serif-medium", Typeface.NORMAL);
+    }
+
+    public static Typeface bold() {
+        return Typeface.create("sans-serif", Typeface.BOLD);
     }
 
     public static LinearLayout card(Context context, int color) {
@@ -58,6 +70,7 @@ public final class Ui {
         card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(dp(context, 16), dp(context, 16), dp(context, 16), dp(context, 16));
         card.setBackground(round(context, color, 24, LINE));
+        card.setElevation(dp(context, 1));
         card.setLayoutParams(new LinearLayout.LayoutParams(-1, -2));
         return card;
     }
@@ -67,41 +80,74 @@ public final class Ui {
         button.setText(label);
         button.setAllCaps(false);
         button.setTextSize(14);
-        button.setTypeface(medium());
+        button.setTypeface(bold());
         button.setGravity(Gravity.CENTER);
         button.setMinHeight(dp(context, 52));
         button.setTextColor(primary ? INK : PAPER);
-        GradientDrawable shape = round(context, primary ? ACID : RAISED, 18, primary ? ACID : LINE);
+        GradientDrawable shape =
+                primary
+                        ? gradient(context, ACID, ACID_DARK, 18, ACID)
+                        : round(context, RAISED, 18, LINE);
         button.setBackground(
                 new RippleDrawable(ColorStateList.valueOf(Color.argb(50, 255, 255, 255)), shape, null));
+        button.setElevation(primary ? dp(context, 4) : 0f);
         button.setLayoutParams(new LinearLayout.LayoutParams(-1, -2));
         return button;
     }
 
     public static TextView choice(Context context, String label, boolean selected) {
-        TextView choice = text(context, label, 13, selected ? INK : PAPER, medium());
+        TextView choice = text(context, label, 13, selected ? ACID : PAPER, medium());
         choice.setGravity(Gravity.CENTER);
         choice.setMinHeight(dp(context, 42));
         choice.setPadding(dp(context, 10), dp(context, 9), dp(context, 10), dp(context, 9));
         choice.setBackground(
                 new RippleDrawable(
                         ColorStateList.valueOf(Color.argb(45, 255, 255, 255)),
-                        round(context, selected ? ACID : RAISED, 16, selected ? ACID : LINE),
+                        round(
+                                context,
+                                selected ? ACID_SOFT : RAISED,
+                                16,
+                                selected ? ACID : LINE),
                         null));
         return choice;
     }
 
     public static void setChoiceSelected(TextView choice, boolean selected) {
-        choice.setTextColor(selected ? INK : PAPER);
+        choice.setTextColor(selected ? ACID : PAPER);
         choice.setBackground(
                 new RippleDrawable(
                         ColorStateList.valueOf(Color.argb(45, 255, 255, 255)),
                         round(
                                 choice.getContext(),
-                                selected ? ACID : RAISED,
+                                selected ? ACID_SOFT : RAISED,
                                 16,
                                 selected ? ACID : LINE),
                         null));
+    }
+
+    public static void styleSwitch(Context context, Switch toggle) {
+        int[][] states = {
+            new int[] {android.R.attr.state_checked},
+            new int[] {}
+        };
+        toggle.setThumbTintList(
+                new ColorStateList(states, new int[] {PAPER, Color.rgb(126, 141, 162)}));
+        toggle.setTrackTintList(new ColorStateList(states, new int[] {ACID, RAISED}));
+        toggle.setShowText(false);
+        toggle.setMinimumWidth(dp(context, 52));
+    }
+
+    public static TextView pill(Context context, String label, boolean selected) {
+        TextView pill = text(context, label, 11, selected ? ACID : MUTED, medium());
+        pill.setGravity(Gravity.CENTER);
+        pill.setPadding(dp(context, 10), dp(context, 5), dp(context, 10), dp(context, 5));
+        pill.setBackground(
+                round(
+                        context,
+                        selected ? ACID_SOFT : GLASS,
+                        999,
+                        selected ? ACID : LINE));
+        return pill;
     }
 
     public static Spinner spinner(Context context, String[] values) {
@@ -160,6 +206,38 @@ public final class Ui {
         drawable.setCornerRadius(dp(context, radiusDp));
         drawable.setStroke(dp(context, 1), strokeColor);
         return drawable;
+    }
+
+    public static GradientDrawable gradient(
+            Context context, int startColor, int endColor, int radiusDp, int strokeColor) {
+        GradientDrawable drawable =
+                new GradientDrawable(
+                        GradientDrawable.Orientation.TL_BR,
+                        new int[] {startColor, endColor});
+        drawable.setCornerRadius(dp(context, radiusDp));
+        drawable.setStroke(dp(context, 1), strokeColor);
+        return drawable;
+    }
+
+    public static GradientDrawable pageBackground(Context context) {
+        return gradient(context, INK, Color.rgb(7, 16, 23), 0, INK);
+    }
+
+    public static void styleDialog(AlertDialog dialog) {
+        if (dialog.getWindow() != null) {
+            dialog.getWindow()
+                    .setBackgroundDrawable(round(dialog.getContext(), PANEL, 24, LINE));
+        }
+        if (dialog.getButton(AlertDialog.BUTTON_POSITIVE) != null) {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(ACID);
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTypeface(bold());
+        }
+        if (dialog.getButton(AlertDialog.BUTTON_NEGATIVE) != null) {
+            dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(MUTED);
+        }
+        if (dialog.getButton(AlertDialog.BUTTON_NEUTRAL) != null) {
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setTextColor(MUTED);
+        }
     }
 
     public static int dp(Context context, float value) {

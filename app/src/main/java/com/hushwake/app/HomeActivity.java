@@ -18,13 +18,13 @@ import android.os.Looper;
 import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
+import android.view.WindowInsets;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
-import android.widget.Spinner;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -32,6 +32,7 @@ import com.hushwake.app.alarm.AlarmHomeRefreshPolicy;
 import com.hushwake.app.alarm.AlarmRingingService;
 import com.hushwake.app.alarm.AlarmScheduler;
 import com.hushwake.app.alarm.AlarmSessionStore;
+import com.hushwake.app.alarm.AlarmSoundCatalog;
 import com.hushwake.app.alarm.AlarmStopPolicy;
 import com.hushwake.app.data.AlarmRepository;
 import com.hushwake.app.data.AppPreferences;
@@ -44,7 +45,9 @@ import com.hushwake.app.noise.WhiteNoiseService;
 import com.hushwake.app.reliability.AlarmWakePermissionPolicy;
 import com.hushwake.app.reliability.OemAutostartNavigator;
 import com.hushwake.app.reliability.ReadinessChecker;
+import com.hushwake.app.ui.AmbientWaveView;
 import com.hushwake.app.ui.Ui;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -189,16 +192,20 @@ public final class HomeActivity extends Activity {
         navigation = new LinearLayout(this);
         navigation.setGravity(Gravity.CENTER);
         navigation.setOrientation(LinearLayout.HORIZONTAL);
-        navigation.setPadding(Ui.dp(this, 10), Ui.dp(this, 7), Ui.dp(this, 10), Ui.dp(this, 8));
-        navigation.setBackground(Ui.round(this, Ui.PANEL, 0, Ui.LINE));
+        navigation.setPadding(Ui.dp(this, 4), Ui.dp(this, 4), Ui.dp(this, 4), Ui.dp(this, 4));
+        navigation.setBackground(Ui.round(this, Ui.PANEL, 18, Ui.LINE));
         addNav("闹钟", SCREEN_ALARMS);
         addNav("助眠声", SCREEN_NOISE);
-        shell.addView(navigation, new LinearLayout.LayoutParams(-1, Ui.dp(this, 66)));
+        LinearLayout.LayoutParams navParams =
+                new LinearLayout.LayoutParams(-1, Ui.dp(this, 58));
+        navParams.setMargins(
+                Ui.dp(this, 14), Ui.dp(this, 4), Ui.dp(this, 14), Ui.dp(this, 10));
+        shell.addView(navigation, navParams);
         return shell;
     }
 
     private void addNav(String label, String screen) {
-        TextView item = Ui.text(this, label, 14, Ui.MUTED, Typeface.DEFAULT_BOLD);
+        TextView item = Ui.text(this, label, 13, Ui.MUTED, Ui.bold());
         item.setGravity(Gravity.CENTER);
         item.setTag(screen);
         item.setOnClickListener(v -> showScreen(screen));
@@ -216,6 +223,7 @@ public final class HomeActivity extends Activity {
         content.removeAllViews();
         View page = SCREEN_NOISE.equals(screen) ? noisePage() : alarmsPage();
         content.addView(page, new FrameLayout.LayoutParams(-1, -1));
+        page.requestApplyInsets();
         if (animate) {
             page.setAlpha(0f);
             page.setTranslationY(Ui.dp(this, 8));
@@ -225,7 +233,7 @@ public final class HomeActivity extends Activity {
             TextView item = (TextView) navigation.getChildAt(i);
             boolean selected = screen.equals(item.getTag());
             item.setTextColor(selected ? Ui.ACID : Ui.MUTED);
-            item.setBackground(selected ? Ui.round(this, Ui.RAISED, 16, Ui.LINE) : null);
+            item.setBackground(selected ? Ui.round(this, Ui.RAISED, 14, Ui.LINE) : null);
         }
     }
 
@@ -284,34 +292,54 @@ public final class HomeActivity extends Activity {
     private View alarmsPage() {
         ScrollView scroll = scroll();
         LinearLayout root = pageRoot(scroll);
-        root.addView(Ui.eyebrow(this, "闹钟"));
-        root.addView(hero("几点叫醒你？", 36));
         ReadinessChecker.Status readiness = ReadinessChecker.inspect(this);
         root.addView(outputBanner(readiness));
+        root.addView(Ui.space(this, 18));
+
+        View header =
+                pageHeader(
+                        "几点叫醒你？",
+                        "精确调度 · 轻柔渐响",
+                        "+",
+                        () -> startActivity(new Intent(this, EditAlarmActivity.class)));
+        root.addView(header);
+
         View permission = alarmPermissionBanner(readiness);
         if (permission != null) {
-            root.addView(Ui.space(this, 10));
+            root.addView(Ui.space(this, 14));
             root.addView(permission);
         }
         if (!readiness.oemAutostartConfirmed()) {
             root.addView(Ui.space(this, 10));
             root.addView(oemAutostartBanner());
         }
-        root.addView(Ui.space(this, 18));
 
         List<Alarm> items = alarms.listAll();
+        root.addView(Ui.space(this, 16));
+        root.addView(nextAlarmCard(items));
+        root.addView(Ui.space(this, 20));
+        root.addView(sectionHeader("所有闹钟", items.size() + " 个设置"));
+        root.addView(Ui.space(this, 10));
         if (items.isEmpty()) {
             LinearLayout empty = Ui.card(this, Ui.PANEL);
+            empty.setGravity(Gravity.CENTER_HORIZONTAL);
+            TextView mark = Ui.text(this, "＋", 28, Ui.ACID, Ui.display());
+            mark.setGravity(Gravity.CENTER);
+            mark.setBackground(Ui.round(this, Ui.ACID_SOFT, 999, Ui.ACID));
+            empty.addView(mark, new LinearLayout.LayoutParams(Ui.dp(this, 48), Ui.dp(this, 48)));
             TextView title =
                     Ui.text(
                             this,
                             "还没有闹钟",
-                            20,
+                            18,
                             Ui.PAPER,
                             Ui.medium());
-            title.setPadding(0, Ui.dp(this, 9), 0, Ui.dp(this, 5));
+            title.setPadding(0, Ui.dp(this, 12), 0, Ui.dp(this, 4));
             empty.addView(title);
-            empty.addView(Ui.text(this, "先设一个时间，之后随时可以调整。", 13, Ui.MUTED, Typeface.DEFAULT));
+            TextView detail =
+                    Ui.text(this, "先设一个时间，之后随时可以调整。", 12, Ui.MUTED, Typeface.DEFAULT);
+            detail.setGravity(Gravity.CENTER);
+            empty.addView(detail);
             root.addView(empty);
         } else {
             AlarmSessionStore.Snapshot active = new AlarmSessionStore(this).load();
@@ -320,7 +348,7 @@ public final class HomeActivity extends Activity {
                 root.addView(Ui.space(this, 12));
             }
         }
-        Button add = Ui.button(this, "+  新建闹钟", true);
+        Button add = Ui.button(this, "⊕  新建智能闹钟", true);
         Ui.marginTop(add, 8);
         add.setOnClickListener(v -> startActivity(new Intent(this, EditAlarmActivity.class)));
         root.addView(add);
@@ -329,28 +357,60 @@ public final class HomeActivity extends Activity {
 
     private View alarmCard(Alarm alarm, AlarmSessionStore.Snapshot active) {
         LinearLayout card = Ui.card(this, alarm.enabled() ? Ui.RAISED : Ui.PANEL);
+        card.setPadding(
+                Ui.dp(this, 16), Ui.dp(this, 15), Ui.dp(this, 16), Ui.dp(this, 15));
+        card.setBackground(
+                alarm.enabled()
+                        ? Ui.gradient(
+                                this,
+                                Ui.RAISED,
+                                Ui.GLASS,
+                                24,
+                                android.graphics.Color.rgb(83, 62, 36))
+                        : Ui.round(this, Ui.PANEL, 24, Ui.LINE));
+        if (!alarm.enabled()) card.setAlpha(.74f);
         LinearLayout top = new LinearLayout(this);
         top.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout copy = new LinearLayout(this);
+        copy.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout titleRow = new LinearLayout(this);
+        titleRow.setGravity(Gravity.BOTTOM);
         TextView time =
                 Ui.text(
                         this,
                         String.format(java.util.Locale.ROOT, "%02d:%02d", alarm.hour(), alarm.minute()),
-                        42,
+                        34,
                         alarm.enabled() ? Ui.PAPER : Ui.MUTED,
                         Ui.display());
-        top.addView(time, new LinearLayout.LayoutParams(0, -2, 1));
+        titleRow.addView(time);
+        if (!alarm.label().isBlank()) {
+            TextView tag =
+                    Ui.text(
+                            this,
+                            alarm.label(),
+                            12,
+                            alarm.enabled() ? Ui.ACID : Ui.MUTED,
+                            Ui.medium());
+            tag.setPadding(Ui.dp(this, 8), 0, 0, Ui.dp(this, 3));
+            titleRow.addView(tag);
+        }
+        copy.addView(titleRow);
+        String meta = repeatSummary(alarm.repeatMask());
+        meta +=
+                alarm.enabled()
+                        ? "  ·  铃声：" + AlarmSoundCatalog.find(alarm.soundId()).label()
+                        : "  ·  已关闭";
+        TextView summary = Ui.text(this, meta, 12, Ui.MUTED, Typeface.DEFAULT);
+        summary.setPadding(0, Ui.dp(this, 2), 0, 0);
+        copy.addView(summary);
+        top.addView(copy, new LinearLayout.LayoutParams(0, -2, 1));
         Switch enabled = new Switch(this);
         enabled.setChecked(alarm.enabled());
-        enabled.setThumbTintList(android.content.res.ColorStateList.valueOf(Ui.ACID));
+        Ui.styleSwitch(this, enabled);
         enabled.setOnCheckedChangeListener(
                 (button, checked) -> setAlarmEnabled(alarm, checked));
         top.addView(enabled);
         card.addView(top);
-        String meta = repeatSummary(alarm.repeatMask());
-        if (!alarm.label().isBlank()) meta += "  ·  " + alarm.label();
-        TextView summary = Ui.text(this, meta, 13, Ui.MUTED, Typeface.DEFAULT);
-        summary.setPadding(0, Ui.dp(this, 1), 0, 0);
-        card.addView(summary);
         if (isActiveOccurrence(alarm.id(), active)) {
             Button stop = Ui.button(this, "正在响铃 · 立即停止", false);
             Ui.marginTop(stop, 12);
@@ -361,32 +421,116 @@ public final class HomeActivity extends Activity {
                     });
             card.addView(stop);
         }
-        if (alarm.enabled()) {
-            Instant next = AlarmTimeCalculator.next(alarm, Instant.now(), ZoneId.systemDefault());
-            TextView nextView =
-                    Ui.text(
-                            this,
-                            "下一次 · "
-                                    + DateTimeFormatter.ofPattern(
-                                                    "M月d日 E HH:mm",
-                                                    java.util.Locale.SIMPLIFIED_CHINESE)
-                                            .format(next.atZone(ZoneId.systemDefault())),
-                            12,
-                            Ui.WARM,
-                            Ui.medium());
-            nextView.setPadding(0, Ui.dp(this, 9), 0, 0);
-            card.addView(nextView);
-        } else {
-            TextView off = Ui.text(this, "已关闭", 12, Ui.MUTED, Ui.medium());
-            off.setPadding(0, Ui.dp(this, 9), 0, 0);
-            card.addView(off);
-        }
         card.setOnClickListener(
                 v ->
                         startActivity(
                                 new Intent(this, EditAlarmActivity.class)
                                         .putExtra(EditAlarmActivity.EXTRA_ALARM_ID, alarm.id())));
         return card;
+    }
+
+    private View nextAlarmCard(List<Alarm> items) {
+        Alarm nextAlarm = null;
+        Instant nextAt = null;
+        Instant now = Instant.now();
+        for (Alarm alarm : items) {
+            if (!alarm.enabled()) continue;
+            Instant candidate = AlarmTimeCalculator.next(alarm, now, ZoneId.systemDefault());
+            if (nextAt == null || candidate.isBefore(nextAt)) {
+                nextAt = candidate;
+                nextAlarm = alarm;
+            }
+        }
+
+        LinearLayout card = Ui.card(this, Ui.GLASS);
+        card.setPadding(
+                Ui.dp(this, 18), Ui.dp(this, 17), Ui.dp(this, 18), Ui.dp(this, 17));
+        card.setBackground(
+                Ui.gradient(
+                        this,
+                        Ui.ACID_SOFT,
+                        Ui.PANEL,
+                        26,
+                        android.graphics.Color.rgb(100, 72, 35)));
+        if (nextAlarm == null || nextAt == null) {
+            card.addView(Ui.pill(this, "✦  下一次响铃", true), new LinearLayout.LayoutParams(-2, -2));
+            TextView empty = Ui.text(this, "暂无已开启闹钟", 24, Ui.PAPER, Ui.medium());
+            empty.setPadding(0, Ui.dp(this, 16), 0, Ui.dp(this, 4));
+            card.addView(empty);
+            card.addView(Ui.text(this, "打开任一闹钟后，这里会显示准确时间。", 12, Ui.MUTED, Typeface.DEFAULT));
+            return card;
+        }
+
+        LinearLayout heading = new LinearLayout(this);
+        heading.setGravity(Gravity.CENTER_VERTICAL);
+        heading.addView(Ui.pill(this, "✦  下一次响铃", true));
+        TextView date =
+                Ui.text(
+                        this,
+                        DateTimeFormatter.ofPattern(
+                                        "M月d日 E", java.util.Locale.SIMPLIFIED_CHINESE)
+                                .format(nextAt.atZone(ZoneId.systemDefault())),
+                        11,
+                        Ui.MUTED,
+                        Typeface.MONOSPACE);
+        date.setGravity(Gravity.END);
+        heading.addView(date, new LinearLayout.LayoutParams(0, -2, 1));
+        card.addView(heading);
+
+        LinearLayout timeRow = new LinearLayout(this);
+        timeRow.setGravity(Gravity.BOTTOM);
+        TextView time =
+                Ui.text(
+                        this,
+                        DateTimeFormatter.ofPattern("HH:mm")
+                                .format(nextAt.atZone(ZoneId.systemDefault())),
+                        48,
+                        Ui.PAPER,
+                        Ui.display());
+        time.setPadding(0, Ui.dp(this, 8), 0, Ui.dp(this, 5));
+        timeRow.addView(time);
+        TextView period =
+                Ui.text(
+                        this,
+                        nextAt.atZone(ZoneId.systemDefault()).getHour() < 12 ? "上午" : "下午",
+                        13,
+                        Ui.ACID,
+                        Ui.medium());
+        period.setPadding(Ui.dp(this, 8), 0, 0, Ui.dp(this, 10));
+        timeRow.addView(period);
+        card.addView(timeRow);
+        card.addView(Ui.divider(this));
+
+        LinearLayout footer = new LinearLayout(this);
+        footer.setGravity(Gravity.CENTER_VERTICAL);
+        footer.setPadding(0, Ui.dp(this, 11), 0, 0);
+        TextView countdown =
+                Ui.text(this, "◷  " + formatCountdown(now, nextAt), 12, Ui.PAPER, Ui.medium());
+        footer.addView(countdown, new LinearLayout.LayoutParams(0, -2, 1));
+        String note =
+                nextAlarm.label().isBlank()
+                        ? repeatSummary(nextAlarm.repeatMask())
+                        : nextAlarm.label();
+        footer.addView(Ui.text(this, note, 11, Ui.MUTED, Typeface.DEFAULT));
+        card.addView(footer);
+
+        Alarm target = nextAlarm;
+        card.setOnClickListener(
+                v ->
+                        startActivity(
+                                new Intent(this, EditAlarmActivity.class)
+                                        .putExtra(EditAlarmActivity.EXTRA_ALARM_ID, target.id())));
+        return card;
+    }
+
+    private static String formatCountdown(Instant now, Instant target) {
+        long minutes = Math.max(1L, Duration.between(now, target).toMinutes());
+        long days = minutes / (24L * 60L);
+        long hours = (minutes % (24L * 60L)) / 60L;
+        long rest = minutes % 60L;
+        if (days > 0) return days + "天 " + hours + "小时后";
+        if (hours > 0) return hours + "小时 " + rest + "分钟后";
+        return rest + "分钟后";
     }
 
     private static boolean isActiveOccurrence(
@@ -430,10 +574,10 @@ public final class HomeActivity extends Activity {
     private View noisePage() {
         ScrollView scroll = scroll();
         LinearLayout root = pageRoot(scroll);
-        root.addView(Ui.eyebrow(this, "助眠声"));
-        root.addView(hero("想听什么入睡？", 36));
         ReadinessChecker.Status readiness = ReadinessChecker.inspect(this);
         root.addView(outputBanner(readiness));
+        root.addView(Ui.space(this, 18));
+        root.addView(pageHeader("想听什么入睡？", "6 种真实录音 · 本地离线播放", null, null));
         root.addView(Ui.space(this, 18));
 
         NoiseSessionStore.Snapshot session = new NoiseSessionStore(this).load();
@@ -453,10 +597,10 @@ public final class HomeActivity extends Activity {
         LinearLayout libraryTitle = new LinearLayout(this);
         libraryTitle.setGravity(Gravity.CENTER_VERTICAL);
         libraryTitle.addView(
-                Ui.text(this, "声音库", 16, Ui.PAPER, Ui.medium()),
+                Ui.text(this, "声音库", 13, Ui.MUTED, Ui.medium()),
                 new LinearLayout.LayoutParams(0, -2, 1));
         libraryTitle.addView(
-                Ui.text(this, "左右滑动 · 6 种真实录音", 11, Ui.MUTED, Typeface.DEFAULT));
+                Ui.text(this, "左右滑动选择", 11, Ui.MUTED, Typeface.DEFAULT));
         root.addView(libraryTitle);
         root.addView(Ui.space(this, 10));
         HorizontalScrollView soundStrip = new HorizontalScrollView(this);
@@ -472,26 +616,50 @@ public final class HomeActivity extends Activity {
             LinearLayout choice = soundChoice(item, selected);
             choice.setOnClickListener(v -> selectSleepSound(soundId, session, active));
             LinearLayout.LayoutParams params =
-                    new LinearLayout.LayoutParams(Ui.dp(this, 116), Ui.dp(this, 140));
-            if (i > 0) params.leftMargin = Ui.dp(this, 10);
+                    new LinearLayout.LayoutParams(Ui.dp(this, 124), Ui.dp(this, 154));
+            if (i > 0) params.leftMargin = Ui.dp(this, 11);
             soundChoices.addView(choice, params);
         }
         soundStrip.addView(soundChoices, new HorizontalScrollView.LayoutParams(-2, -1));
-        root.addView(soundStrip, new LinearLayout.LayoutParams(-1, Ui.dp(this, 140)));
-        root.addView(Ui.space(this, 14));
+        root.addView(soundStrip, new LinearLayout.LayoutParams(-1, Ui.dp(this, 154)));
+        root.addView(Ui.space(this, 16));
 
         LinearLayout status = Ui.card(this, active ? Ui.RAISED : Ui.PANEL);
+        status.setPadding(
+                Ui.dp(this, 18), Ui.dp(this, 16), Ui.dp(this, 18), Ui.dp(this, 18));
+        status.setBackground(
+                active
+                        ? Ui.gradient(
+                                this,
+                                Ui.RAISED,
+                                Ui.GLASS,
+                                24,
+                                android.graphics.Color.rgb(86, 64, 37))
+                        : Ui.round(this, Ui.GLASS, 24, Ui.LINE));
+        TextView playing =
+                Ui.text(
+                        this,
+                        active ? "●  正在播放" : "●  准备播放",
+                        11,
+                        active ? Ui.WARM : Ui.MUTED,
+                        Ui.medium());
+        status.addView(playing);
+
+        LinearLayout titleRow = new LinearLayout(this);
+        titleRow.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout copy = new LinearLayout(this);
         copy.setOrientation(LinearLayout.VERTICAL);
-        copy.addView(Ui.eyebrow(this, active ? "正在播放" : "准备播放"));
         TextView soundName =
-                Ui.text(this, WhiteNoiseService.soundLabel(selectedSoundId), 21, Ui.PAPER, Ui.medium());
-        soundName.setPadding(0, Ui.dp(this, 5), 0, 0);
+                Ui.text(this, WhiteNoiseService.soundLabel(selectedSoundId), 22, Ui.PAPER, Ui.bold());
+        soundName.setPadding(0, Ui.dp(this, 7), 0, 0);
         copy.addView(soundName);
-        status.addView(copy);
         TextView state = Ui.text(this, session.detail(), 12, Ui.MUTED, Typeface.DEFAULT);
-        state.setPadding(0, Ui.dp(this, 9), 0, 0);
-        status.addView(state);
+        state.setPadding(0, Ui.dp(this, 2), 0, 0);
+        copy.addView(state);
+        titleRow.addView(copy, new LinearLayout.LayoutParams(0, -2, 1));
+        AmbientWaveView wave = new AmbientWaveView(this, active && !"paused".equals(session.state()));
+        titleRow.addView(wave, new LinearLayout.LayoutParams(Ui.dp(this, 94), Ui.dp(this, 48)));
+        status.addView(titleRow);
         TextView remaining =
                 Ui.text(
                         this,
@@ -501,9 +669,9 @@ public final class HomeActivity extends Activity {
                                         + timerPresentation.fadeLabel()
                                 : "选择声音与时长后开始播放",
                         12,
-                        active ? Ui.WARM : Ui.MUTED,
+                        active ? Ui.ACID : Ui.MUTED,
                         Ui.medium());
-        remaining.setPadding(0, Ui.dp(this, 4), 0, 0);
+        remaining.setPadding(0, Ui.dp(this, 10), 0, 0);
         status.addView(remaining);
 
         LinearLayout playbackActions = new LinearLayout(this);
@@ -513,8 +681,8 @@ public final class HomeActivity extends Activity {
                 Ui.button(
                         this,
                         active
-                                ? ("paused".equals(session.state()) ? "继续播放" : "暂停")
-                                : "播放",
+                                ? ("paused".equals(session.state()) ? "▶  继续播放" : "Ⅱ  暂停助眠声")
+                                : "▶  播放助眠声",
                         true);
         playbackActions.addView(
                 primary,
@@ -534,20 +702,28 @@ public final class HomeActivity extends Activity {
         status.addView(playbackActions);
         root.addView(status);
 
-        Spinner timer =
-                Ui.spinner(
-                        this,
-                        new String[] {"持续播放（最长 8 小时）", "15 分钟", "30 分钟", "45 分钟", "60 分钟"});
-        timer.setSelection(
-                indexOf(new int[] {0, 15, 30, 45, 60}, preferences.noiseTimerMinutes()));
-        Spinner fade = Ui.spinner(this, new String[] {"直接结束", "5 秒渐隐", "15 秒渐隐", "30 秒渐隐"});
-        fade.setSelection(indexOf(new int[] {0, 5, 15, 30}, preferences.noiseFadeSeconds()));
+        OptionSelector timer =
+                optionSelector(
+                        "定时关闭时长",
+                        new String[] {"持续播放", "15 分钟", "30 分钟", "45 分钟", "60 分钟"},
+                        indexOf(new int[] {0, 15, 30, 45, 60}, preferences.noiseTimerMinutes()));
+        OptionSelector fade =
+                optionSelector(
+                        "停止方式",
+                        new String[] {"直接结束", "5 秒渐隐", "15 秒渐隐", "30 秒渐隐"},
+                        indexOf(new int[] {0, 5, 15, 30}, preferences.noiseFadeSeconds()));
         if (timerPresentation.showNextSessionSettings()) {
-            root.addView(Ui.space(this, 14));
-            LinearLayout controls = Ui.card(this, Ui.PANEL);
-            controls.addView(Ui.text(this, "本次播放", 18, Ui.PAPER, Ui.medium()));
-            addField(controls, "播放时长", timer);
-            addField(controls, "结束方式", fade);
+            root.addView(Ui.space(this, 16));
+            LinearLayout controls = Ui.card(this, Ui.GLASS);
+            controls.setPadding(
+                    Ui.dp(this, 18), Ui.dp(this, 16), Ui.dp(this, 18), Ui.dp(this, 18));
+            controls.addView(sectionHeader("本次播放设置", "开始前可随时调整"));
+            controls.addView(Ui.space(this, 14));
+            controls.addView(timer.root);
+            controls.addView(Ui.space(this, 14));
+            controls.addView(Ui.divider(this));
+            controls.addView(Ui.space(this, 14));
+            controls.addView(fade.root);
             root.addView(controls);
         } else {
             scheduleNoiseTimer(remaining, session);
@@ -566,9 +742,9 @@ public final class HomeActivity extends Activity {
                     }
                     String soundId = selectedSoundId;
                     int timerMinutes =
-                            new int[] {0, 15, 30, 45, 60}[timer.getSelectedItemPosition()];
+                            new int[] {0, 15, 30, 45, 60}[timer.index];
                     int fadeSeconds =
-                            new int[] {0, 5, 15, 30}[fade.getSelectedItemPosition()];
+                            new int[] {0, 5, 15, 30}[fade.index];
                     preferences.saveNoiseDefaults(timerMinutes, fadeSeconds, soundId);
                     Intent play =
                             new Intent(this, WhiteNoiseService.class)
@@ -594,17 +770,33 @@ public final class HomeActivity extends Activity {
     private LinearLayout soundChoice(SleepSoundCatalog.Item item, boolean selected) {
         LinearLayout choice = new LinearLayout(this);
         choice.setOrientation(LinearLayout.VERTICAL);
-        choice.setGravity(Gravity.CENTER);
-        choice.setPadding(Ui.dp(this, 12), Ui.dp(this, 14), Ui.dp(this, 12), Ui.dp(this, 14));
-        choice.setBackground(Ui.round(this, selected ? Ui.ACID : Ui.PANEL, 24, selected ? Ui.ACID : Ui.LINE));
-        choice.addView(Ui.text(this, item.symbol(), 27, selected ? Ui.INK : Ui.WARM, Ui.display()));
-        TextView label = Ui.text(this, item.shortLabel(), 14, selected ? Ui.INK : Ui.PAPER, Ui.medium());
-        label.setPadding(0, Ui.dp(this, 8), 0, 0);
+        choice.setGravity(Gravity.START);
+        choice.setPadding(Ui.dp(this, 13), Ui.dp(this, 13), Ui.dp(this, 13), Ui.dp(this, 13));
+        int accent = soundAccent(item.id());
+        choice.setBackground(
+                selected
+                        ? Ui.gradient(this, Ui.ACID_SOFT, Ui.PANEL, 24, Ui.ACID)
+                        : Ui.gradient(this, Ui.GLASS, Ui.PANEL, 24, Ui.LINE));
+        TextView symbol = Ui.text(this, item.symbol(), 15, accent, Ui.bold());
+        symbol.setGravity(Gravity.CENTER);
+        symbol.setBackground(Ui.round(this, Ui.PANEL, 999, accent));
+        choice.addView(symbol, new LinearLayout.LayoutParams(Ui.dp(this, 34), Ui.dp(this, 34)));
+        choice.addView(Ui.space(this, 31), new LinearLayout.LayoutParams(1, 0, 1));
+        TextView label = Ui.text(this, item.shortLabel(), 14, Ui.PAPER, Ui.bold());
         choice.addView(label);
-        TextView note = Ui.text(this, item.note(), 10, selected ? Ui.INK : Ui.MUTED, Typeface.DEFAULT);
+        TextView note = Ui.text(this, item.note(), 10, Ui.MUTED, Typeface.DEFAULT);
         note.setPadding(0, Ui.dp(this, 2), 0, 0);
         choice.addView(note);
         return choice;
+    }
+
+    private int soundAccent(String soundId) {
+        return switch (soundId) {
+            case "rain", "stream" -> Ui.BLUE;
+            case "fireplace" -> Ui.ACID;
+            case "crickets" -> Ui.VIOLET;
+            default -> Ui.WARM;
+        };
     }
 
     private void scheduleNoiseTimer(
@@ -670,7 +862,7 @@ public final class HomeActivity extends Activity {
         } else if (!status.mediaVolume()) {
             title = "手机媒体音量当前为 0";
             detail = "悄醒不会替你调高音量。";
-            accent = Ui.WARM;
+            accent = Ui.ACID;
             action = () -> startActivity(new Intent(Settings.ACTION_SOUND_SETTINGS));
             actionLabel = "调整";
         } else if (!status.outputSelectable()) {
@@ -690,11 +882,11 @@ public final class HomeActivity extends Activity {
         } else {
             title = "扬声器播放";
             detail = "当前无耳机 · 跟随媒体音量";
-            accent = Ui.WARM;
+            accent = Ui.ACID;
             action = () -> startActivity(new Intent(Settings.ACTION_SOUND_SETTINGS));
             actionLabel = "调整音量";
         }
-        return infoBanner(title, detail, accent, actionLabel, action);
+        return outputStatusCard(title, detail, accent, actionLabel, action);
     }
 
     private View alarmPermissionBanner(ReadinessChecker.Status status) {
@@ -784,6 +976,7 @@ public final class HomeActivity extends Activity {
                         .create();
         dialog.setOnDismissListener(ignored -> wakePermissionDialogVisible = false);
         dialog.show();
+        Ui.styleDialog(dialog);
         return true;
     }
 
@@ -815,22 +1008,66 @@ public final class HomeActivity extends Activity {
 
     private View infoBanner(
             String title, String detail, int accent, String actionLabel, Runnable action) {
-        LinearLayout card = Ui.card(this, Ui.PANEL);
+        LinearLayout card = Ui.card(this, Ui.GLASS);
         card.setPadding(Ui.dp(this, 14), Ui.dp(this, 12), Ui.dp(this, 14), Ui.dp(this, 12));
+        card.setBackground(Ui.round(this, Ui.GLASS, 20, accent));
         LinearLayout row = new LinearLayout(this);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        TextView mark = Ui.text(this, "●", 14, accent, Typeface.DEFAULT_BOLD);
-        row.addView(mark, new LinearLayout.LayoutParams(Ui.dp(this, 28), -2));
+        TextView mark = Ui.text(this, "!", 13, accent, Ui.bold());
+        mark.setGravity(Gravity.CENTER);
+        mark.setBackground(Ui.round(this, Ui.PANEL, 999, accent));
+        LinearLayout.LayoutParams markParams =
+                new LinearLayout.LayoutParams(Ui.dp(this, 30), Ui.dp(this, 30));
+        markParams.rightMargin = Ui.dp(this, 10);
+        row.addView(mark, markParams);
         LinearLayout copy = new LinearLayout(this);
         copy.setOrientation(LinearLayout.VERTICAL);
-        copy.addView(Ui.text(this, title, 14, Ui.PAPER, Ui.medium()));
-        TextView description = Ui.text(this, detail, 12, Ui.MUTED, Typeface.DEFAULT);
+        copy.addView(Ui.text(this, title, 13, Ui.PAPER, Ui.bold()));
+        TextView description = Ui.text(this, detail, 11, Ui.MUTED, Typeface.DEFAULT);
         description.setPadding(0, Ui.dp(this, 3), 0, 0);
         copy.addView(description);
         row.addView(copy, new LinearLayout.LayoutParams(0, -2, 1));
         if (action != null) {
-            TextView button = Ui.text(this, actionLabel, 13, Ui.ACID, Typeface.DEFAULT_BOLD);
-            button.setPadding(Ui.dp(this, 12), Ui.dp(this, 8), 0, Ui.dp(this, 8));
+            TextView button = Ui.text(this, actionLabel, 12, Ui.ACID, Ui.bold());
+            button.setGravity(Gravity.CENTER);
+            button.setPadding(
+                    Ui.dp(this, 11), Ui.dp(this, 7), Ui.dp(this, 11), Ui.dp(this, 7));
+            button.setBackground(Ui.round(this, Ui.ACID_SOFT, 14, Ui.ACID_SOFT));
+            row.addView(button);
+            card.setOnClickListener(v -> action.run());
+        }
+        card.addView(row);
+        return card;
+    }
+
+    private View outputStatusCard(
+            String title, String detail, int accent, String actionLabel, Runnable action) {
+        LinearLayout card = Ui.card(this, Ui.GLASS);
+        card.setPadding(Ui.dp(this, 12), Ui.dp(this, 11), Ui.dp(this, 12), Ui.dp(this, 11));
+        card.setBackground(Ui.round(this, Ui.GLASS, 19, Ui.LINE));
+        LinearLayout row = new LinearLayout(this);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        TextView icon = Ui.text(this, "♪", 18, accent, Ui.bold());
+        icon.setGravity(Gravity.CENTER);
+        icon.setBackground(Ui.round(this, Ui.ACID_SOFT, 999, accent));
+        LinearLayout.LayoutParams iconParams =
+                new LinearLayout.LayoutParams(Ui.dp(this, 36), Ui.dp(this, 36));
+        iconParams.rightMargin = Ui.dp(this, 11);
+        row.addView(icon, iconParams);
+
+        LinearLayout copy = new LinearLayout(this);
+        copy.setOrientation(LinearLayout.VERTICAL);
+        copy.addView(Ui.text(this, title + "  •", 13, Ui.PAPER, Ui.bold()));
+        TextView description = Ui.text(this, detail, 10, Ui.MUTED, Typeface.DEFAULT);
+        description.setPadding(0, Ui.dp(this, 2), 0, 0);
+        copy.addView(description);
+        row.addView(copy, new LinearLayout.LayoutParams(0, -2, 1));
+        if (action != null) {
+            TextView button = Ui.text(this, actionLabel, 12, Ui.ACID, Ui.bold());
+            button.setGravity(Gravity.CENTER);
+            button.setPadding(
+                    Ui.dp(this, 11), Ui.dp(this, 7), Ui.dp(this, 11), Ui.dp(this, 7));
+            button.setBackground(Ui.round(this, Ui.ACID_SOFT, 14, Ui.ACID_SOFT));
             row.addView(button);
             card.setOnClickListener(v -> action.run());
         }
@@ -839,9 +1076,10 @@ public final class HomeActivity extends Activity {
     }
 
     private View principleCard(String title, String detail, int accent) {
-        LinearLayout card = Ui.card(this, Ui.PANEL);
+        LinearLayout card = Ui.card(this, Ui.GLASS);
+        card.setBackground(Ui.gradient(this, Ui.GLASS, Ui.PANEL, 24, accent));
         TextView heading =
-                Ui.text(this, title, 21, accent, Typeface.create("serif", Typeface.BOLD));
+                Ui.text(this, title, 19, accent, Ui.bold());
         heading.setPadding(0, 0, 0, Ui.dp(this, 6));
         card.addView(heading);
         card.addView(Ui.text(this, detail, 14, Ui.PAPER, Typeface.DEFAULT));
@@ -913,18 +1151,106 @@ public final class HomeActivity extends Activity {
 
     private ScrollView scroll() {
         ScrollView scroll = new ScrollView(this);
-        scroll.setBackgroundColor(Ui.INK);
+        scroll.setBackground(Ui.pageBackground(this));
         scroll.setFillViewport(true);
         scroll.setClipToPadding(false);
+        scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        if (Build.VERSION.SDK_INT >= 35) {
+            scroll.setOnApplyWindowInsetsListener(
+                    (view, insets) -> {
+                        android.graphics.Insets bars =
+                                insets.getInsets(WindowInsets.Type.statusBars());
+                        view.setPadding(0, bars.top, 0, 0);
+                        return insets;
+                    });
+        }
         return scroll;
     }
 
     private LinearLayout pageRoot(ScrollView scroll) {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(Ui.dp(this, 20), Ui.dp(this, 22), Ui.dp(this, 20), Ui.dp(this, 48));
+        root.setPadding(Ui.dp(this, 20), Ui.dp(this, 16), Ui.dp(this, 20), Ui.dp(this, 34));
         scroll.addView(root, new ScrollView.LayoutParams(-1, -2));
         return root;
+    }
+
+    private View pageHeader(
+            String title, String subtitle, String actionLabel, Runnable action) {
+        LinearLayout row = new LinearLayout(this);
+        row.setGravity(Gravity.BOTTOM);
+        LinearLayout copy = new LinearLayout(this);
+        copy.setOrientation(LinearLayout.VERTICAL);
+        copy.addView(Ui.text(this, title, 27, Ui.PAPER, Ui.bold()));
+        TextView detail = Ui.text(this, subtitle, 12, Ui.MUTED, Typeface.DEFAULT);
+        detail.setPadding(0, Ui.dp(this, 3), 0, 0);
+        copy.addView(detail);
+        row.addView(copy, new LinearLayout.LayoutParams(0, -2, 1));
+        if (action != null && actionLabel != null) {
+            TextView button = Ui.text(this, actionLabel, 24, Ui.PAPER, Ui.display());
+            button.setGravity(Gravity.CENTER);
+            button.setContentDescription("新建闹钟");
+            button.setBackground(Ui.round(this, Ui.RAISED, 999, Ui.LINE));
+            button.setOnClickListener(v -> action.run());
+            row.addView(
+                    button,
+                    new LinearLayout.LayoutParams(Ui.dp(this, 40), Ui.dp(this, 40)));
+        }
+        return row;
+    }
+
+    private View sectionHeader(String title, String trailing) {
+        LinearLayout row = new LinearLayout(this);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.addView(
+                Ui.text(this, title, 12, Ui.MUTED, Ui.medium()),
+                new LinearLayout.LayoutParams(0, -2, 1));
+        if (trailing != null && !trailing.isBlank()) {
+            row.addView(Ui.text(this, trailing, 11, Ui.MUTED, Typeface.DEFAULT));
+        }
+        return row;
+    }
+
+    private OptionSelector optionSelector(String title, String[] values, int selectedIndex) {
+        OptionSelector selector = new OptionSelector();
+        selector.index = Math.max(0, Math.min(selectedIndex, values.length - 1));
+        selector.root = new LinearLayout(this);
+        selector.root.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout heading = new LinearLayout(this);
+        heading.setGravity(Gravity.CENTER_VERTICAL);
+        heading.addView(
+                Ui.text(this, title, 12, Ui.MUTED, Typeface.DEFAULT),
+                new LinearLayout.LayoutParams(0, -2, 1));
+        TextView value = Ui.text(this, values[selector.index], 12, Ui.PAPER, Ui.medium());
+        heading.addView(value);
+        selector.root.addView(heading);
+        selector.root.addView(Ui.space(this, 8));
+
+        HorizontalScrollView scroll = new HorizontalScrollView(this);
+        scroll.setHorizontalScrollBarEnabled(false);
+        LinearLayout choices = new LinearLayout(this);
+        choices.setOrientation(LinearLayout.HORIZONTAL);
+        TextView[] views = new TextView[values.length];
+        for (int i = 0; i < values.length; i++) {
+            TextView choice = Ui.choice(this, values[i], i == selector.index);
+            int index = i;
+            choice.setOnClickListener(
+                    v -> {
+                        selector.index = index;
+                        value.setText(values[index]);
+                        for (int j = 0; j < views.length; j++) {
+                            Ui.setChoiceSelected(views[j], j == index);
+                        }
+                    });
+            LinearLayout.LayoutParams params =
+                    new LinearLayout.LayoutParams(-2, Ui.dp(this, 40));
+            if (i > 0) params.leftMargin = Ui.dp(this, 7);
+            choices.addView(choice, params);
+            views[i] = choice;
+        }
+        scroll.addView(choices, new HorizontalScrollView.LayoutParams(-2, -1));
+        selector.root.addView(scroll, new LinearLayout.LayoutParams(-1, Ui.dp(this, 40)));
+        return selector;
     }
 
     private TextView hero(String value, int size) {
@@ -934,21 +1260,14 @@ public final class HomeActivity extends Activity {
         return hero;
     }
 
-    private void addField(LinearLayout parent, String title, View input) {
-        TextView label = Ui.text(this, title, 12, Ui.MUTED, Typeface.DEFAULT_BOLD);
-        label.setPadding(0, Ui.dp(this, 14), 0, Ui.dp(this, 4));
-        parent.addView(label);
-        parent.addView(input, new LinearLayout.LayoutParams(-1, -2));
-    }
-
     private static int indexOf(int[] values, int target) {
         for (int i = 0; i < values.length; i++) if (values[i] == target) return i;
         return 0;
     }
 
-    private static int indexOf(String[] values, String target) {
-        for (int i = 0; i < values.length; i++) if (values[i].equals(target)) return i;
-        return 0;
+    private static final class OptionSelector {
+        private LinearLayout root;
+        private int index;
     }
 
     private static String repeatSummary(int mask) {

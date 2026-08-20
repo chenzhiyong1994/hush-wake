@@ -79,7 +79,7 @@ if ($initial.SelectSingleNode("//node[@text='HUSHWAKE  /  悄醒']")) {
     Tap-UiText -Text "开始使用"
 }
 
-Tap-UiText -Text "+  新建闹钟"
+Tap-UiText -Text "⊕  新建智能闹钟"
 Find-UiNode -Text "新闹钟" | Out-Null
 Tap-UiText -Text "保存闹钟"
 $afterSave = Get-UiXml

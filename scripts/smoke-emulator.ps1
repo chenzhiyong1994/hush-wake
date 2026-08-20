@@ -98,8 +98,8 @@ foreach ($screen in $screens) {
 }
 
 Assert-UiText "声音库"
-Tap-UiText "播放"
-Assert-UiText "暂停"
+Tap-UiText "▶  播放助眠声"
+Assert-UiText "Ⅱ  暂停助眠声"
 Assert-UiText "停止"
 $playing = Get-UiXml
 $minuteLabels = $playing.SelectNodes("//node[contains(@text,'分钟')]")
@@ -110,7 +110,7 @@ Tap-UiText "停止"
 
 Tap-UiText "闹钟"
 Assert-UiTextAbsent "不同于普通闹钟：悄醒只用媒体音播放，跟随手机媒体音量；连接耳机后只走已验证耳机，断连也不会转到扬声器。"
-Tap-UiText "+  新建闹钟"
+Tap-UiText "⊕  新建智能闹钟"
 Assert-UiText "新闹钟"
 Assert-UiText "唤醒时间"
 Tap-UiText "调整  ›"

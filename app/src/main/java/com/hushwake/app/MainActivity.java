@@ -34,20 +34,21 @@ import com.hushwake.app.data.DeviceVerificationRepository;
 import com.hushwake.app.domain.DeviceVerification;
 import com.hushwake.app.guard.OutputGuard;
 import com.hushwake.app.platform.PlatformVersion;
+import com.hushwake.app.ui.Ui;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Deque;
 
 public final class MainActivity extends Activity implements AudioSafetyEngine.Listener {
-    private static final int INK = Color.rgb(9, 17, 15);
-    private static final int PANEL = Color.rgb(16, 27, 24);
-    private static final int PANEL_RAISED = Color.rgb(22, 36, 31);
-    private static final int LINE = Color.rgb(49, 69, 61);
-    private static final int PAPER = Color.rgb(239, 246, 236);
-    private static final int MUTED = Color.rgb(157, 176, 166);
-    private static final int ACID = Color.rgb(233, 255, 112);
-    private static final int WARM = Color.rgb(255, 184, 107);
-    private static final int DANGER = Color.rgb(255, 126, 112);
+    private static final int INK = Color.rgb(11, 14, 20);
+    private static final int PANEL = Color.rgb(18, 23, 33);
+    private static final int PANEL_RAISED = Color.rgb(31, 41, 59);
+    private static final int LINE = Color.rgb(42, 53, 72);
+    private static final int PAPER = Color.rgb(246, 247, 250);
+    private static final int MUTED = Color.rgb(142, 155, 174);
+    private static final int ACID = Color.rgb(245, 176, 84);
+    private static final int WARM = Color.rgb(93, 214, 194);
+    private static final int DANGER = Color.rgb(255, 118, 108);
 
     private final Deque<String> logLines = new ArrayDeque<>();
 
@@ -142,7 +143,12 @@ public final class MainActivity extends Activity implements AudioSafetyEngine.Li
         eyebrow.setLetterSpacing(0.16f);
         content.addView(eyebrow);
 
-        TextView title = text("只在耳边\n响起。", 42, PAPER, Typeface.create("serif", Typeface.BOLD));
+        TextView title =
+                text(
+                        "只在耳边\n响起。",
+                        42,
+                        PAPER,
+                        Typeface.create("sans-serif-light", Typeface.NORMAL));
         title.setLineSpacing(0f, 0.92f);
         title.setPadding(0, dp(14), 0, dp(10));
         content.addView(title);
@@ -161,7 +167,12 @@ public final class MainActivity extends Activity implements AudioSafetyEngine.Li
         TextView heroLabel = text("当前守卫", 11, MUTED, Typeface.MONOSPACE);
         heroLabel.setLetterSpacing(0.12f);
         hero.addView(heroLabel);
-        statusTitle = text("安全待机", 29, ACID, Typeface.create("serif", Typeface.BOLD));
+        statusTitle =
+                text(
+                        "安全待机",
+                        29,
+                        ACID,
+                        Typeface.create("sans-serif-medium", Typeface.NORMAL));
         statusTitle.setPadding(0, dp(10), 0, dp(5));
         hero.addView(statusTitle);
         statusDetail = text("输出不确定时保持安静", 14, PAPER, Typeface.DEFAULT);
@@ -348,6 +359,7 @@ public final class MainActivity extends Activity implements AudioSafetyEngine.Li
                         saveManualResult(
                                 report.withResult("人工确认未完成", "未确认结果；按失败处理"), false));
         dialog.show();
+        Ui.styleDialog(dialog);
     }
 
     private void saveManualResult(TestReport report, boolean passed) {
