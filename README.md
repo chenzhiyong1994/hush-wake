@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://github.com/chenzhiyong1994/hush-wake/actions/workflows/android-ci.yml"><img src="https://github.com/chenzhiyong1994/hush-wake/actions/workflows/android-ci.yml/badge.svg" alt="Android CI"></a>
-  <img src="https://img.shields.io/badge/status-0.3.7--beta-f6bf6f" alt="0.3.7 beta">
+  <img src="https://img.shields.io/badge/status-0.4.2--beta-f6bf6f" alt="0.4.2 beta">
   <img src="https://img.shields.io/badge/Android-12%2B-e9ff70?logo=android&logoColor=09110f" alt="Android 12+">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-8fb8a8" alt="Apache License 2.0"></a>
 </p>
@@ -26,7 +26,7 @@ Alarms are very good at waking one person—and often everyone else in the room.
 HushWake tackles a deceptively simple problem: **use normal speaker output when no headphones are present, but play through headphones only after the current audio route has been verified as safe.** If the headphones disconnect, the route changes, or Android cannot provide enough evidence, HushWake mutes first and stops instead of silently falling back to a speaker.
 
 > [!IMPORTANT]
-> `0.4.1-beta` contains the complete core feature set, but it remains a functional beta rather than a publicly validated stable release. Real-device, zero-speaker-leakage testing is still a release gate; a successful build does not prove that every device is safe.
+> `0.4.2-beta` contains the complete core feature set, but it remains a functional beta rather than a publicly validated stable release. Real-device, zero-speaker-leakage testing is still a release gate; a successful build does not prove that every device is safe.
 
 ## Why HushWake
 
@@ -46,8 +46,9 @@ HushWake therefore takes a deliberately conservative approach:
 | Alarms | One-time and weekly schedules, exact scheduling, reboot/time-change recovery, lock-screen entry, high-priority notification, stop, one snooze, and maximum ringing duration |
 | Smart output | Normal media output when no headphones are present; guarded routing when exactly one headphone device is detected; unsafe routes are blocked |
 | Headphone verification | Dual-layer muted startup, low-volume confirmation on the current device, actual-route revalidation, and stop-on-disconnect/focus-loss/multiple-candidate behavior |
-| Sleep sounds | Six real ambient recordings with pause, notification controls, 15–60 minute timer, fade-out, and instant sound switching without resetting the timer |
+| Sleep sounds | Eight real ambient recordings with textured cards, pause, notification controls, 5–120 minute timer, fade-out, and instant sound switching without resetting the timer |
 | Alarm sounds | Six AOSP alarm sounds with instant preview in the editor and continuous looping while ringing |
+| Identity | Adaptive B1-A launcher icon, Android themed icon, and a branded animated cold-start transition |
 | Data | Local SQLite and SharedPreferences; Android backup and device transfer disabled; no network or account layer |
 
 App volume follows the system media volume and never raises it automatically. All audio is bundled for offline use, with sources and redistribution terms documented in [Audio sources and licenses](docs/audio-credits.md).

@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">悄醒</string>
+    <string name="launch_accessibility">悄醒正在启动</string>
+    <string name="launch_tagline">轻声入睡 · 准时醒来</string>
+    <string name="launch_loading">正在准备安静而可靠的唤醒</string>
     <string name="volume_value">%1$d / %2$d</string>
     <string name="stop_countdown">立即静音并停止 · %1$d s</string>
 </resources>

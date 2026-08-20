@@ -51,6 +51,8 @@ import com.hushwake.app.reliability.AlarmWakePermissionPolicy;
 import com.hushwake.app.reliability.OemAutostartNavigator;
 import com.hushwake.app.reliability.ReadinessChecker;
 import com.hushwake.app.ui.AmbientWaveView;
+import com.hushwake.app.ui.BrandLaunchPolicy;
+import com.hushwake.app.ui.BrandLaunchView;
 import com.hushwake.app.ui.Ui;
 import java.time.Duration;
 import java.time.Instant;
@@ -70,6 +72,10 @@ public final class HomeActivity extends Activity {
 
     private AlarmRepository alarms;
     private AppPreferences preferences;
+    private FrameLayout appRoot;
+    private BrandLaunchView brandLaunch;
+    private boolean brandLaunchPlaying;
+    private boolean systemSplashExited;
     private FrameLayout content;
     private LinearLayout navigation;
     private String currentScreen = SCREEN_ALARMS;
@@ -100,16 +106,58 @@ public final class HomeActivity extends Activity {
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
+        getSplashScreen()
+                .setOnExitAnimationListener(
+                        splash -> {
+                            systemSplashExited = true;
+                            splash.remove();
+                            playBrandLaunch();
+                        });
         alarms = new AlarmRepository(this);
         preferences = new AppPreferences(this);
         new AlarmScheduler(this).reconcileOnAppOpen();
         configureWindow();
-        setContentView(buildShell());
+        attachShell(state);
         if (!preferences.outputPolicyAcknowledged()) {
             showOnboarding();
         } else {
             showScreen(sanitizeScreen(getIntent().getStringExtra(EXTRA_SCREEN)));
         }
+        playBrandLaunch();
+    }
+
+    private void attachShell(Bundle state) {
+        appRoot = new FrameLayout(this);
+        appRoot.addView(buildShell(), new FrameLayout.LayoutParams(-1, -1));
+        AlarmSessionStore.Snapshot alarmSession = new AlarmSessionStore(this).load();
+        Intent intent = getIntent();
+        boolean launcherIntent =
+                Intent.ACTION_MAIN.equals(intent.getAction())
+                        && intent.hasCategory(Intent.CATEGORY_LAUNCHER);
+        if (BrandLaunchPolicy.shouldShow(state != null, launcherIntent, alarmSession.state())) {
+            brandLaunch = new BrandLaunchView(this);
+            appRoot.addView(brandLaunch, new FrameLayout.LayoutParams(-1, -1));
+        }
+        setContentView(appRoot);
+    }
+
+    private void playBrandLaunch() {
+        BrandLaunchView launch = brandLaunch;
+        if (launch == null || brandLaunchPlaying || !systemSplashExited) return;
+        brandLaunchPlaying = true;
+        launch.play(
+                () ->
+                        launch.animate()
+                                .alpha(0f)
+                                .setDuration(240L)
+                                .withEndAction(
+                                        () -> {
+                                            if (launch.getParent() == appRoot) {
+                                                appRoot.removeView(launch);
+                                            }
+                                            if (brandLaunch == launch) brandLaunch = null;
+                                        })
+                                .start());
     }
 
     @Override
@@ -317,8 +365,8 @@ public final class HomeActivity extends Activity {
                 pageHeader(
                         "几点叫醒你？",
                         "精确调度 · 轻柔渐响",
-                        "+",
-                        () -> startActivity(new Intent(this, EditAlarmActivity.class)));
+                        null,
+                        null);
         root.addView(header);
 
         View permission = alarmPermissionBanner(readiness);
@@ -337,28 +385,7 @@ public final class HomeActivity extends Activity {
         root.addView(Ui.space(this, 20));
         root.addView(sectionHeader("所有闹钟", items.size() + " 个设置"));
         root.addView(Ui.space(this, 10));
-        if (items.isEmpty()) {
-            LinearLayout empty = Ui.card(this, Ui.PANEL);
-            empty.setGravity(Gravity.CENTER_HORIZONTAL);
-            TextView mark = Ui.text(this, "＋", 28, Ui.ACID, Ui.display());
-            mark.setGravity(Gravity.CENTER);
-            mark.setBackground(Ui.round(this, Ui.ACID_SOFT, 999, Ui.ACID));
-            empty.addView(mark, new LinearLayout.LayoutParams(Ui.dp(this, 48), Ui.dp(this, 48)));
-            TextView title =
-                    Ui.text(
-                            this,
-                            "还没有闹钟",
-                            18,
-                            Ui.PAPER,
-                            Ui.medium());
-            title.setPadding(0, Ui.dp(this, 12), 0, Ui.dp(this, 4));
-            empty.addView(title);
-            TextView detail =
-                    Ui.text(this, "先设一个时间，之后随时可以调整。", 12, Ui.MUTED, Typeface.DEFAULT);
-            detail.setGravity(Gravity.CENTER);
-            empty.addView(detail);
-            root.addView(empty);
-        } else {
+        if (!items.isEmpty()) {
             AlarmSessionStore.Snapshot active = new AlarmSessionStore(this).load();
             for (Alarm alarm : items) {
                 root.addView(alarmCard(alarm, active));
@@ -811,29 +838,27 @@ public final class HomeActivity extends Activity {
 
         LinearLayout foreground = new LinearLayout(this);
         foreground.setOrientation(LinearLayout.VERTICAL);
+        foreground.setGravity(Gravity.BOTTOM);
         foreground.setPadding(
                 Ui.dp(this, 13), Ui.dp(this, 13), Ui.dp(this, 13), Ui.dp(this, 13));
         int accent = soundAccent(item.id());
-        TextView symbol = Ui.text(this, item.symbol(), 15, accent, Ui.bold());
-        symbol.setGravity(Gravity.CENTER);
-        symbol.setBackground(Ui.round(this, Color.argb(215, 18, 23, 33), 999, accent));
-        foreground.addView(
-                symbol, new LinearLayout.LayoutParams(Ui.dp(this, 34), Ui.dp(this, 34)));
-        foreground.addView(Ui.space(this, 31), new LinearLayout.LayoutParams(1, 0, 1));
+        View accentBar = new View(this);
+        accentBar.setBackground(Ui.round(this, accent, 999, Color.TRANSPARENT));
+        LinearLayout.LayoutParams accentParams =
+                new LinearLayout.LayoutParams(Ui.dp(this, 27), Ui.dp(this, 3));
+        accentParams.bottomMargin = Ui.dp(this, 9);
+        foreground.addView(accentBar, accentParams);
         foreground.addView(Ui.text(this, item.shortLabel(), 14, Ui.PAPER, Ui.bold()));
         TextView note = Ui.text(this, item.note(), 10, Ui.MUTED, Typeface.DEFAULT);
         note.setPadding(0, Ui.dp(this, 2), 0, 0);
         foreground.addView(note);
         choice.addView(foreground, new FrameLayout.LayoutParams(-1, -1));
 
-        View border = new View(this);
-        border.setBackground(
-                Ui.round(
-                        this,
-                        Color.TRANSPARENT,
-                        24,
-                        selected ? Ui.ACID : Color.argb(150, 42, 53, 72)));
-        choice.addView(border, new FrameLayout.LayoutParams(-1, -1));
+        View selectionBorder = new View(this);
+        selectionBorder.setBackground(
+                Ui.round(this, Color.TRANSPARENT, 24, selected ? accent : Ui.LINE));
+        choice.addView(selectionBorder, new FrameLayout.LayoutParams(-1, -1));
+        choice.setElevation(Ui.dp(this, selected ? 4 : 1));
         return choice;
     }
 

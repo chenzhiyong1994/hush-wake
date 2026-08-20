@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="brand_window">#0B0E14</color>
+    <color name="brand_ink">#10182A</color>
+    <color name="brand_cream">#FFF3D9</color>
+    <color name="brand_amber">#F5B054</color>
+    <color name="brand_mint">#55CFC2</color>
+</resources>

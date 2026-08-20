@@ -3,11 +3,11 @@
     <style name="Theme.HushWake" parent="android:style/Theme.Material.NoActionBar">
         <item name="android:fontFamily">sans-serif</item>
         <item name="android:windowLightStatusBar">false</item>
-        <item name="android:statusBarColor">#0B0E14</item>
-        <item name="android:navigationBarColor">#0B0E14</item>
-        <item name="android:colorAccent">#F5B054</item>
+        <item name="android:statusBarColor">@color/brand_window</item>
+        <item name="android:navigationBarColor">@color/brand_window</item>
+        <item name="android:colorAccent">@color/brand_amber</item>
         <item name="android:alertDialogTheme">@style/Theme.HushWake.Dialog</item>
-        <item name="android:windowBackground">#0B0E14</item>
+        <item name="android:windowBackground">@color/brand_window</item>
         <item name="android:textColorPrimary">#F6F7FA</item>
         <item name="android:textColorSecondary">#8E9BAE</item>
         <item name="android:windowNoTitle">true</item>
@@ -15,9 +15,16 @@
         <item name="android:windowActionModeOverlay">true</item>
     </style>
 
+    <style name="Theme.HushWake.Starting" parent="Theme.HushWake">
+        <item name="android:windowSplashScreenBackground">@color/brand_window</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_splash_mark</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/brand_ink</item>
+        <item name="android:windowSplashScreenAnimationDuration">400</item>
+    </style>
+
     <style name="Theme.HushWake.Dialog" parent="android:style/Theme.Material.Dialog.Alert">
         <item name="android:windowBackground">#121721</item>
-        <item name="android:colorAccent">#F5B054</item>
+        <item name="android:colorAccent">@color/brand_amber</item>
         <item name="android:textColorPrimary">#F6F7FA</item>
         <item name="android:textColorSecondary">#8E9BAE</item>
         <item name="android:backgroundDimAmount">0.72</item>

@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://github.com/chenzhiyong1994/hush-wake/actions/workflows/android-ci.yml"><img src="https://github.com/chenzhiyong1994/hush-wake/actions/workflows/android-ci.yml/badge.svg" alt="Android CI"></a>
-  <img src="https://img.shields.io/badge/status-0.3.5--beta-f6bf6f" alt="0.3.5 beta">
+  <img src="https://img.shields.io/badge/status-0.4.2--beta-f6bf6f" alt="0.4.2 beta">
   <img src="https://img.shields.io/badge/Android-12%2B-e9ff70?logo=android&logoColor=09110f" alt="Android 12+">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-8fb8a8" alt="Apache License 2.0"></a>
 </p>
@@ -26,7 +26,7 @@
 HushWake 想解决的是一个看似简单、实际很容易出错的问题：**没有耳机时正常外放；检测到耳机时，只在确认当前实际音频路径安全后播放。** 如果耳机断开、路由改变或系统给出的证据不足，应用会先静音再停止，而不是为了“继续有声”悄悄切回扬声器。
 
 > [!IMPORTANT]
-> `0.3.5-beta` 已具备完整核心功能，但仍是公开源码的功能测试版，不是公开稳定发行版。真实耳机的零扬声器串音验证仍是发布门禁；源码可构建不等于所有设备都已安全通过。
+> `0.4.2-beta` 已具备完整核心功能，但仍是公开源码的功能测试版，不是公开稳定发行版。真实耳机的零扬声器串音验证仍是发布门禁；源码可构建不等于所有设备都已安全通过。
 
 ## 为什么做 HushWake
 
@@ -46,8 +46,9 @@ HushWake 因此选择一条更克制的路线：
 | 闹钟 | 一次性/周重复、精确调度、开机和时间变化后重排、锁屏入口、高优先级通知、停止、一次稍后提醒、最长响铃 |
 | 智能输出 | 无耳机时允许系统媒体外放；检测到唯一耳机时进入路由守卫，不安全则阻断 |
 | 耳机验证 | 双层静音起播、本机人工低增益确认、实际路由复验、断连/焦点丢失/多候选时停止 |
-| 助眠声 | 6 种真实环境录音，支持暂停、通知控制、15–60 分钟定时、渐隐和不重置计时的即时换声 |
+| 助眠声 | 8 种带环境底纹的真实录音，支持暂停、通知控制、5–120 分钟定时、渐隐和不重置计时的即时换声 |
 | 闹铃声音 | 6 种 AOSP 闹铃素材，编辑页即时试听，正式响铃持续循环 |
+| 品牌体验 | B1-A 自适应桌面图标、Android 主题单色图标与品牌冷启动动效 |
 | 数据 | 本地 SQLite / SharedPreferences；Android 备份与设备迁移关闭；无网络和账号层 |
 
 应用音量完全跟随系统媒体音量，不会擅自调高系统音量。所有音频离线打包，来源和再分发许可可在[音频来源与许可](docs/audio-credits.md)中逐项审查。
