@@ -26,6 +26,11 @@ public final class ReadinessStatusTest {
         assertFalse(readyStatus(true, true, false).fullyReady());
     }
 
+    @Test
+    public void unconfirmedVendorAutostartIsNotFullyReadyToWake() {
+        assertFalse(readyStatus(true, true, true, false).fullyReady());
+    }
+
     private static ReadinessChecker.Status readyStatus(boolean backgroundAllowed) {
         return readyStatus(backgroundAllowed, true, true);
     }
@@ -34,6 +39,14 @@ public final class ReadinessStatusTest {
             boolean backgroundAllowed,
             boolean standbyAllowed,
             boolean batteryOptimizationExempt) {
+        return readyStatus(backgroundAllowed, standbyAllowed, batteryOptimizationExempt, true);
+    }
+
+    private static ReadinessChecker.Status readyStatus(
+            boolean backgroundAllowed,
+            boolean standbyAllowed,
+            boolean batteryOptimizationExempt,
+            boolean oemAutostartConfirmed) {
         return new ReadinessChecker.Status(
                 true,
                 true,
@@ -41,6 +54,7 @@ public final class ReadinessStatusTest {
                 backgroundAllowed,
                 standbyAllowed,
                 batteryOptimizationExempt,
+                oemAutostartConfirmed,
                 true,
                 true,
                 "智能外放 · 手机扬声器",

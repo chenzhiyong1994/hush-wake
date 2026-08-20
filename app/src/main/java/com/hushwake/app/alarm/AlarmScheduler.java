@@ -39,7 +39,7 @@ public final class AlarmScheduler {
     }
 
     public ScheduleResult schedule(Alarm alarm) {
-        cancelNormal(alarm.id());
+        cancel(alarm.id());
         if (!alarm.enabled()) {
             return new ScheduleResult(Result.DISABLED, null, "闹钟已停用");
         }
@@ -55,7 +55,10 @@ public final class AlarmScheduler {
         }
         PendingIntent trigger =
                 triggerIntent(
-                        alarm.id(), next.toEpochMilli(), false, PendingIntent.FLAG_UPDATE_CURRENT);
+                        alarm.id(),
+                        next.toEpochMilli(),
+                        alarm.isSnoozed(),
+                        PendingIntent.FLAG_UPDATE_CURRENT);
         Intent open = new Intent(context, MainActivity.class);
         open.putExtra(EXTRA_ALARM_ID, alarm.id());
         PendingIntent show =
@@ -73,24 +76,6 @@ public final class AlarmScheduler {
         } catch (RuntimeException error) {
             return new ScheduleResult(Result.FAILED, null, error.getClass().getSimpleName());
         }
-    }
-
-    public void scheduleSnooze(long alarmId, Instant triggerAt) {
-        if (!canScheduleExact()) {
-            throw new IllegalStateException("Exact alarm permission is unavailable");
-        }
-        PendingIntent trigger =
-                triggerIntent(
-                        alarmId, triggerAt.toEpochMilli(), true, PendingIntent.FLAG_UPDATE_CURRENT);
-        Intent open = new Intent(context, MainActivity.class);
-        PendingIntent show =
-                PendingIntent.getActivity(
-                        context,
-                        requestCode(alarmId, 1),
-                        open,
-                        PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        alarmManager.setAlarmClock(
-                new AlarmManager.AlarmClockInfo(triggerAt.toEpochMilli(), show), trigger);
     }
 
     public void cancel(long alarmId) {
@@ -121,7 +106,6 @@ public final class AlarmScheduler {
         AppPreferences preferences = new AppPreferences(context);
         String issue = "";
         for (Alarm alarm : alarms.listAll()) {
-            cancelSnooze(alarm.id());
             if (alarm.enabled()) {
                 ScheduleResult result = schedule(alarm);
                 if (result.result() == Result.DISABLED) {
@@ -130,6 +114,8 @@ public final class AlarmScheduler {
                 if (result.result() != Result.SCHEDULED) {
                     issue = result.detail();
                 }
+            } else {
+                cancel(alarm.id());
             }
         }
         preferences.setLastScheduleIssue(issue);
@@ -139,7 +125,11 @@ public final class AlarmScheduler {
     public void reconcileOnAppOpen() {
         AppPreferences preferences = new AppPreferences(context);
         String issue = "";
-        for (Alarm alarm : new AlarmRepository(context).listEnabled()) {
+        for (Alarm alarm : new AlarmRepository(context).listAll()) {
+            if (!alarm.enabled()) {
+                cancel(alarm.id());
+                continue;
+            }
             ScheduleResult result = schedule(alarm);
             if (result.result() == Result.DISABLED) {
                 new AlarmRepository(context)

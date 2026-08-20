@@ -16,6 +16,7 @@ import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 import com.hushwake.app.data.AlarmRepository;
 import com.hushwake.app.domain.Alarm;
 import java.time.LocalTime;
@@ -36,7 +37,13 @@ public final class RingingActivity extends Activity {
                             intent.getBooleanExtra(AlarmRingingService.EXTRA_CAN_SNOOZE, false)
                                     ? android.view.View.VISIBLE
                                     : android.view.View.GONE);
-                    if ("STOPPED".equals(state)) finishAndRemoveTask();
+                    if ("STOPPED".equals(state)) {
+                        String detail = intent.getStringExtra(AlarmRingingService.EXTRA_DETAIL);
+                        if (detail != null && detail.startsWith("闹钟已改为")) {
+                            Toast.makeText(RingingActivity.this, detail, Toast.LENGTH_LONG).show();
+                        }
+                        finishAndRemoveTask();
+                    }
                 }
             };
 
@@ -125,7 +132,13 @@ public final class RingingActivity extends Activity {
         snooze.setLayoutParams(params);
         snooze.setVisibility(alarm != null ? android.view.View.VISIBLE : android.view.View.GONE);
         snooze.setText("稍后 " + UnifiedAlarmPolicy.SNOOZE_MINUTES + " 分钟");
-        snooze.setOnClickListener(v -> send(ACTION(AlarmRingingService.ACTION_SNOOZE)));
+        snooze.setOnClickListener(
+                v -> {
+                    snooze.setEnabled(false);
+                    snooze.setText("正在改为 5 分钟后…");
+                    status.setText("正在保存并重新调度这个闹钟");
+                    send(ACTION(AlarmRingingService.ACTION_SNOOZE));
+                });
         root.addView(snooze);
         TextView privacy = label("智能输出：无耳机时正常外放；检测到耳机时只允许已验证的耳机路径。", 12, Color.rgb(126, 145, 136), Typeface.DEFAULT);
         privacy.setGravity(Gravity.CENTER);

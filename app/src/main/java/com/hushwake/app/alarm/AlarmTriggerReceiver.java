@@ -19,17 +19,15 @@ public final class AlarmTriggerReceiver extends BroadcastReceiver {
         boolean snooze = intent.getBooleanExtra(EXTRA_SNOOZE, false);
         AlarmRepository repository = new AlarmRepository(context);
         Alarm alarm = repository.find(alarmId);
-        if (alarm == null || (!alarm.enabled() && !snooze)) return;
+        if (alarm == null || !alarm.enabled()) return;
 
         long lateness = Math.max(0L, System.currentTimeMillis() - scheduledAt);
         if (scheduledAt <= 0L || lateness > MISSED_WINDOW_MS) {
-            advanceNormalSchedule(context, repository, alarm, snooze);
+            advanceNormalSchedule(context, repository, alarm);
             return;
         }
 
-        if (!snooze) {
-            advanceNormalSchedule(context, repository, alarm, false);
-        }
+        advanceNormalSchedule(context, repository, alarm);
         Intent service = new Intent(context, AlarmRingingService.class);
         service.setAction(AlarmRingingService.ACTION_START);
         service.putExtra(AlarmScheduler.EXTRA_ALARM_ID, alarmId);
@@ -38,12 +36,9 @@ public final class AlarmTriggerReceiver extends BroadcastReceiver {
     }
 
     private static void advanceNormalSchedule(
-            Context context, AlarmRepository repository, Alarm alarm, boolean snooze) {
-        if (snooze) return;
-        if (alarm.isRepeating()) {
-            new AlarmScheduler(context).schedule(alarm);
-        } else {
-            repository.save(alarm.withEnabled(false, System.currentTimeMillis()));
-        }
+            Context context, AlarmRepository repository, Alarm alarm) {
+        Alarm advanced = alarm.afterOccurrence(System.currentTimeMillis());
+        repository.save(advanced);
+        if (advanced.enabled()) new AlarmScheduler(context).schedule(advanced);
     }
 }

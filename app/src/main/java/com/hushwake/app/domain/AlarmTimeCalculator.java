@@ -14,6 +14,13 @@ public final class AlarmTimeCalculator {
         if (alarm == null || after == null || zone == null) {
             throw new IllegalArgumentException("Alarm, time, and zone are required");
         }
+        if (alarm.isSnoozed()) {
+            Instant target = Instant.ofEpochMilli(alarm.snoozeTargetEpochMs());
+            if (!target.isAfter(after)) {
+                throw new IllegalStateException("The snooze target has elapsed");
+            }
+            return target;
+        }
         if (!alarm.isRepeating()) {
             Instant target =
                     Alarm.nextOneTimeInstant(

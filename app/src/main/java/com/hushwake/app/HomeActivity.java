@@ -42,6 +42,8 @@ import com.hushwake.app.noise.NoiseTimerPresentation;
 import com.hushwake.app.noise.SleepSoundCatalog;
 import com.hushwake.app.noise.WhiteNoiseService;
 import com.hushwake.app.reliability.AlarmWakePermissionPolicy;
+import com.hushwake.app.reliability.OemAutostartNavigator;
+import com.hushwake.app.reliability.OemAutostartPolicy;
 import com.hushwake.app.reliability.ReadinessChecker;
 import com.hushwake.app.ui.Ui;
 import java.time.Instant;
@@ -108,7 +110,12 @@ public final class HomeActivity extends Activity {
         super.onResume();
         if (preferences.outputPolicyAcknowledged()) {
             showScreen(currentScreen);
-            content.post(this::showPendingAlarmWakeAudit);
+            content.post(
+                    () -> {
+                        if (!showPendingOemAutostartConfirmation()) {
+                            showPendingAlarmWakeAudit();
+                        }
+                    });
         }
         if (!alarmReceiverRegistered) {
             registerAlarmReceiver();
@@ -124,7 +131,10 @@ public final class HomeActivity extends Activity {
     public void onRequestPermissionsResult(
             int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (preferences.outputPolicyAcknowledged()) showScreen(currentScreen, false);
+        if (preferences.outputPolicyAcknowledged()) {
+            showScreen(currentScreen, false);
+            content.post(this::showPendingAlarmWakeAudit);
+        }
     }
 
     @SuppressLint("UnspecifiedRegisterReceiverFlag")
@@ -384,13 +394,17 @@ public final class HomeActivity extends Activity {
             AlarmWakePermissionPolicy.Issue wakeIssue = firstWakeIssue(readiness);
             String wakeStatus =
                     wakeIssue == AlarmWakePermissionPolicy.Issue.NONE
-                            ? "Android 标准唤醒检查已通过 · 厂商自启动无法自动确认"
+                            ? OemAutostartPolicy.requiresManualConfirmation(Build.MANUFACTURER)
+                                    ? "Android 标准检查已通过 · 厂商自启动已人工确认"
+                                    : "Android 唤醒检查已通过"
                             : "后台唤醒检查未通过 · 点此处理";
             TextView backgroundReady =
                     Ui.text(this, wakeStatus, 12, Ui.MUTED, Typeface.DEFAULT);
             backgroundReady.setPadding(0, Ui.dp(this, 4), 0, 0);
             if (wakeIssue != AlarmWakePermissionPolicy.Issue.NONE) {
                 backgroundReady.setOnClickListener(v -> requestWakePermission(wakeIssue));
+            } else if (OemAutostartPolicy.requiresManualConfirmation(Build.MANUFACTURER)) {
+                backgroundReady.setOnClickListener(v -> requestOemAutostart());
             }
             card.addView(backgroundReady);
         } else {
@@ -767,7 +781,44 @@ public final class HomeActivity extends Activity {
                     "去允许",
                     this::requestBatteryOptimization);
         }
+        if (!status.oemAutostartConfirmed()) {
+            return infoBanner(
+                    "厂商自启动尚未确认",
+                    "电池优化豁免不等于自启动。请在厂商的应用启动或电池管理中为悄醒开启自启动。",
+                    Ui.WARM,
+                    "去确认",
+                    this::requestOemAutostart);
+        }
         return null;
+    }
+
+    private boolean showPendingOemAutostartConfirmation() {
+        if (wakePermissionDialogVisible
+                || !preferences.oemAutostartConfirmationPending(Build.MANUFACTURER)) {
+            return false;
+        }
+        wakePermissionDialogVisible = true;
+        AlertDialog dialog =
+                new AlertDialog.Builder(this)
+                        .setTitle("确认厂商自启动")
+                        .setMessage(
+                                "Android 没有接口读取这个厂商开关。请确认你刚才已经为“悄醒”开启“自启动”“允许后台启动”或同等选项。")
+                        .setPositiveButton(
+                                "已经开启",
+                                (ignoredDialog, which) -> {
+                                    preferences.finishOemAutostartConfirmation(
+                                            Build.MANUFACTURER, true);
+                                    showScreen(SCREEN_ALARMS, false);
+                                })
+                        .setNegativeButton(
+                                "还没开启",
+                                (ignoredDialog, which) ->
+                                        preferences.finishOemAutostartConfirmation(
+                                                Build.MANUFACTURER, false))
+                        .create();
+        dialog.setOnDismissListener(ignored -> wakePermissionDialogVisible = false);
+        dialog.show();
+        return true;
     }
 
     private void showPendingAlarmWakeAudit() {
@@ -796,7 +847,8 @@ public final class HomeActivity extends Activity {
                 status.fullScreen(),
                 status.backgroundAllowed(),
                 status.standbyAllowed(),
-                status.batteryOptimizationExempt());
+                status.batteryOptimizationExempt(),
+                status.oemAutostartConfirmed());
     }
 
     private static String wakeIssueTitle(AlarmWakePermissionPolicy.Issue issue) {
@@ -807,6 +859,7 @@ public final class HomeActivity extends Activity {
             case BACKGROUND_RESTRICTED -> "后台运行已被系统限制";
             case STANDBY_RESTRICTED -> "应用处于受限待机状态";
             case BATTERY_OPTIMIZATION -> "还需关闭电池优化";
+            case OEM_AUTOSTART_UNCONFIRMED -> "还需确认厂商自启动";
             case NONE -> "闹钟唤醒检查已通过";
         };
     }
@@ -819,17 +872,23 @@ public final class HomeActivity extends Activity {
             case BACKGROUND_RESTRICTED -> "Android 已明确禁止悄醒在后台执行，闹钟和前台响铃服务都会被拦截。";
             case STANDBY_RESTRICTED -> "Android 已把悄醒放入 Restricted 待机桶，后台闹钟次数和执行会被严格限制。";
             case BATTERY_OPTIMIZATION -> "悄醒尚未加入电池优化豁免名单。下一步会打开 Android 针对此应用的专用系统确认，而不是普通应用详情页。";
+            case OEM_AUTOSTART_UNCONFIRMED -> "Android 无法读取厂商自启动开关，需要在手机的电池或应用启动管理中人工确认。";
             case NONE -> "Android 可读取的闹钟唤醒能力均已通过；厂商自启动开关没有统一读取接口。";
         };
     }
 
     private void requestWakePermission(AlarmWakePermissionPolicy.Issue issue) {
+        if (issue != AlarmWakePermissionPolicy.Issue.NONE
+                && issue != AlarmWakePermissionPolicy.Issue.OEM_AUTOSTART_UNCONFIRMED) {
+            preferences.requestAlarmWakeAudit();
+        }
         switch (issue) {
             case EXACT_ALARM -> requestExactAlarm();
             case NOTIFICATIONS -> requestNotifications();
             case FULL_SCREEN -> requestFullScreen();
             case BACKGROUND_RESTRICTED, STANDBY_RESTRICTED -> requestBackgroundSettings();
             case BATTERY_OPTIMIZATION -> requestBatteryOptimization();
+            case OEM_AUTOSTART_UNCONFIRMED -> requestOemAutostart();
             case NONE -> {
                 // Nothing to request.
             }
@@ -917,6 +976,13 @@ public final class HomeActivity extends Activity {
                 Toast.makeText(this, "系统没有提供电池优化设置入口。", Toast.LENGTH_LONG).show();
             }
         }
+    }
+
+    private void requestOemAutostart() {
+        preferences.beginOemAutostartConfirmation(Build.MANUFACTURER);
+        if (OemAutostartNavigator.open(this)) return;
+        preferences.finishOemAutostartConfirmation(Build.MANUFACTURER, false);
+        Toast.makeText(this, "系统没有提供可打开的自启动或电池设置入口。", Toast.LENGTH_LONG).show();
     }
 
     private void requestBluetooth() {

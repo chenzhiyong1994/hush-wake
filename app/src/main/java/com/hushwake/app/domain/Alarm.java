@@ -18,6 +18,7 @@ public final class Alarm {
     private final int maxRingSeconds;
     private final boolean enabled;
     private final long oneTimeEpochDay;
+    private final long snoozeTargetEpochMs;
     private final long createdAtEpochMs;
     private final long updatedAtEpochMs;
 
@@ -35,6 +36,42 @@ public final class Alarm {
             int maxRingSeconds,
             boolean enabled,
             long oneTimeEpochDay,
+            long createdAtEpochMs,
+            long updatedAtEpochMs) {
+        this(
+                id,
+                hour,
+                minute,
+                repeatMask,
+                label,
+                soundId,
+                volumePercent,
+                fadeInSeconds,
+                vibrationEnabled,
+                snoozeMinutes,
+                maxRingSeconds,
+                enabled,
+                oneTimeEpochDay,
+                Long.MIN_VALUE,
+                createdAtEpochMs,
+                updatedAtEpochMs);
+    }
+
+    public Alarm(
+            long id,
+            int hour,
+            int minute,
+            int repeatMask,
+            String label,
+            String soundId,
+            int volumePercent,
+            int fadeInSeconds,
+            boolean vibrationEnabled,
+            int snoozeMinutes,
+            int maxRingSeconds,
+            boolean enabled,
+            long oneTimeEpochDay,
+            long snoozeTargetEpochMs,
             long createdAtEpochMs,
             long updatedAtEpochMs) {
         if (id < 0L || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
@@ -74,6 +111,9 @@ public final class Alarm {
         if (repeatMask == 0 && enabled && oneTimeEpochDay == Long.MIN_VALUE) {
             throw new IllegalArgumentException("Enabled one-time alarms require a target date");
         }
+        if (snoozeTargetEpochMs != Long.MIN_VALUE && !enabled) {
+            throw new IllegalArgumentException("A snooze target must be enabled");
+        }
         this.id = id;
         this.hour = hour;
         this.minute = minute;
@@ -87,6 +127,7 @@ public final class Alarm {
         this.maxRingSeconds = maxRingSeconds;
         this.enabled = enabled;
         this.oneTimeEpochDay = repeatMask == 0 ? oneTimeEpochDay : Long.MIN_VALUE;
+        this.snoozeTargetEpochMs = snoozeTargetEpochMs;
         this.createdAtEpochMs = createdAtEpochMs;
         this.updatedAtEpochMs = updatedAtEpochMs;
     }
@@ -160,11 +201,21 @@ public final class Alarm {
     }
 
     public Alarm withId(long newId) {
-        return copy(newId, enabled, oneTimeEpochDay, createdAtEpochMs, updatedAtEpochMs);
+        return copy(
+                newId,
+                enabled,
+                oneTimeEpochDay,
+                snoozeTargetEpochMs,
+                createdAtEpochMs,
+                updatedAtEpochMs);
     }
 
     public Alarm withEnabled(boolean newEnabled, long nowEpochMs) {
         long targetDate = oneTimeEpochDay;
+        long snoozeTarget =
+                newEnabled && snoozeTargetEpochMs > nowEpochMs
+                        ? snoozeTargetEpochMs
+                        : Long.MIN_VALUE;
         if (newEnabled
                 && repeatMask == 0
                 && (targetDate == Long.MIN_VALUE
@@ -178,11 +229,59 @@ public final class Alarm {
             targetDate = nextOneTimeEpochDay(
                     hour, minute, java.time.Instant.ofEpochMilli(nowEpochMs));
         }
-        return copy(id, newEnabled, targetDate, createdAtEpochMs, nowEpochMs);
+        return copy(id, newEnabled, targetDate, snoozeTarget, createdAtEpochMs, nowEpochMs);
+    }
+
+    /** Replaces the current alarm time with the target shown after a five-minute snooze. */
+    public Alarm snoozedAt(java.time.Instant now, java.time.ZoneId zone) {
+        java.time.ZonedDateTime target =
+                now.plusSeconds(UnifiedAlarmPolicy.SNOOZE_MINUTES * 60L).atZone(zone);
+        return new Alarm(
+                id,
+                target.getHour(),
+                target.getMinute(),
+                repeatMask,
+                label,
+                soundId,
+                volumePercent,
+                fadeInSeconds,
+                vibrationEnabled,
+                snoozeMinutes,
+                maxRingSeconds,
+                true,
+                repeatMask == 0 ? target.toLocalDate().toEpochDay() : Long.MIN_VALUE,
+                target.toInstant().toEpochMilli(),
+                createdAtEpochMs,
+                now.toEpochMilli());
+    }
+
+    /** Advances a fired occurrence while clearing any one-occurrence snooze override. */
+    public Alarm afterOccurrence(long nowEpochMs) {
+        if (isRepeating()) {
+            return copy(
+                    id,
+                    true,
+                    Long.MIN_VALUE,
+                    Long.MIN_VALUE,
+                    createdAtEpochMs,
+                    nowEpochMs);
+        }
+        return copy(
+                id,
+                false,
+                oneTimeEpochDay,
+                Long.MIN_VALUE,
+                createdAtEpochMs,
+                nowEpochMs);
     }
 
     private Alarm copy(
-            long newId, boolean newEnabled, long oneTimeDate, long createdAt, long updatedAt) {
+            long newId,
+            boolean newEnabled,
+            long oneTimeDate,
+            long snoozeTarget,
+            long createdAt,
+            long updatedAt) {
         return new Alarm(
                 newId,
                 hour,
@@ -197,6 +296,7 @@ public final class Alarm {
                 maxRingSeconds,
                 newEnabled,
                 oneTimeDate,
+                snoozeTarget,
                 createdAt,
                 updatedAt);
     }
@@ -214,6 +314,8 @@ public final class Alarm {
     public int maxRingSeconds() { return maxRingSeconds; }
     public boolean enabled() { return enabled; }
     public long oneTimeEpochDay() { return oneTimeEpochDay; }
+    public long snoozeTargetEpochMs() { return snoozeTargetEpochMs; }
+    public boolean isSnoozed() { return snoozeTargetEpochMs != Long.MIN_VALUE; }
     public long createdAtEpochMs() { return createdAtEpochMs; }
     public long updatedAtEpochMs() { return updatedAtEpochMs; }
 
@@ -232,6 +334,7 @@ public final class Alarm {
                 && maxRingSeconds == alarm.maxRingSeconds
                 && enabled == alarm.enabled
                 && oneTimeEpochDay == alarm.oneTimeEpochDay
+                && snoozeTargetEpochMs == alarm.snoozeTargetEpochMs
                 && createdAtEpochMs == alarm.createdAtEpochMs
                 && updatedAtEpochMs == alarm.updatedAtEpochMs
                 && label.equals(alarm.label)
@@ -242,8 +345,8 @@ public final class Alarm {
     public int hashCode() {
         return Objects.hash(
                 id, hour, minute, repeatMask, label, soundId, volumePercent, fadeInSeconds,
-                vibrationEnabled, snoozeMinutes, maxRingSeconds, enabled, oneTimeEpochDay, createdAtEpochMs,
-                updatedAtEpochMs);
+                vibrationEnabled, snoozeMinutes, maxRingSeconds, enabled, oneTimeEpochDay,
+                snoozeTargetEpochMs, createdAtEpochMs, updatedAtEpochMs);
     }
 
     public static long nextOneTimeEpochDay(int hour, int minute, java.time.Instant after) {

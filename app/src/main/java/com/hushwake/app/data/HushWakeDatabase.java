@@ -9,7 +9,7 @@ import android.database.sqlite.SQLiteOpenHelper;
 /** Single local fact store. The application intentionally has no network or account layer. */
 public final class HushWakeDatabase extends SQLiteOpenHelper {
     private static final String NAME = "hushwake.db";
-    private static final int VERSION = 3;
+    private static final int VERSION = 4;
     private static volatile HushWakeDatabase instance;
 
     public static HushWakeDatabase get(Context context) {
@@ -51,6 +51,7 @@ public final class HushWakeDatabase extends SQLiteOpenHelper {
                         + "max_ring_seconds INTEGER NOT NULL,"
                         + "enabled INTEGER NOT NULL,"
                         + "one_time_epoch_day INTEGER NOT NULL DEFAULT -9223372036854775808,"
+                        + "snooze_target_epoch_ms INTEGER NOT NULL DEFAULT -9223372036854775808,"
                         + "created_at INTEGER NOT NULL,"
                         + "updated_at INTEGER NOT NULL)" );
         database.execSQL(
@@ -73,6 +74,10 @@ public final class HushWakeDatabase extends SQLiteOpenHelper {
         if (oldVersion < 3) {
             database.execSQL("DROP INDEX IF EXISTS playback_events_created_at");
             database.execSQL("DROP TABLE IF EXISTS playback_events");
+        }
+        if (oldVersion < 4) {
+            database.execSQL(
+                    "ALTER TABLE alarms ADD COLUMN snooze_target_epoch_ms INTEGER NOT NULL DEFAULT -9223372036854775808");
         }
     }
 

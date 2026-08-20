@@ -64,6 +64,16 @@ public final class AlarmTimeCalculatorTest {
                 ZonedDateTime.of(2026, 3, 8, 3, 30, 0, 0, newYork).toInstant(), next);
     }
 
+    @Test
+    public void snoozedAlarmKeepsTheExactFiveMinuteTriggerAcrossAppReconciliation() {
+        Instant now = ZonedDateTime.of(2026, 8, 20, 13, 6, 42, 0, ZONE).toInstant();
+        Alarm alarm = oneTimeAt(now).withEnabled(false, now.toEpochMilli());
+
+        Alarm snoozed = alarm.snoozedAt(now, ZONE);
+
+        assertEquals(now.plusSeconds(5L * 60L), AlarmTimeCalculator.next(snoozed, now, ZONE));
+    }
+
     private static Alarm alarmAt(int hour, int minute, int repeatMask) {
         return new Alarm(
                 1L,

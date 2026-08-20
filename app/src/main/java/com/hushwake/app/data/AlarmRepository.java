@@ -12,7 +12,7 @@ public final class AlarmRepository {
     private static final String[] COLUMNS = {
         "id", "hour", "minute", "repeat_mask", "label", "sound_id", "volume_percent",
         "fade_in_seconds", "vibration_enabled", "snooze_minutes", "max_ring_seconds",
-        "enabled", "one_time_epoch_day", "created_at", "updated_at"
+        "enabled", "one_time_epoch_day", "created_at", "updated_at", "snooze_target_epoch_ms"
     };
 
     private final HushWakeDatabase database;
@@ -108,6 +108,7 @@ public final class AlarmRepository {
         values.put("one_time_epoch_day", alarm.oneTimeEpochDay());
         values.put("created_at", alarm.createdAtEpochMs());
         values.put("updated_at", alarm.updatedAtEpochMs());
+        values.put("snooze_target_epoch_ms", alarm.snoozeTargetEpochMs());
         return values;
     }
 
@@ -126,6 +127,7 @@ public final class AlarmRepository {
                 cursor.getInt(10),
                 cursor.getInt(11) != 0,
                 cursor.getLong(12),
+                cursor.getLong(15),
                 cursor.getLong(13),
                 cursor.getLong(14));
     }

@@ -20,6 +20,8 @@ import com.hushwake.app.domain.Alarm;
 import com.hushwake.app.noise.WhiteNoiseService;
 import com.hushwake.app.noise.NoiseSessionStore;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 
 public final class AlarmRingingService extends Service
         implements PrivatePlaybackEngine.Listener {
@@ -143,11 +145,22 @@ public final class AlarmRingingService extends Service
 
     private void snooze() {
         if (alarm == null || snoozeOccurrence) return;
+        AlarmScheduler scheduler = new AlarmScheduler(this);
         try {
-            Instant next = Instant.now().plusSeconds(UnifiedAlarmPolicy.SNOOZE_MINUTES * 60L);
-            new AlarmScheduler(this).scheduleSnooze(alarm.id(), next);
-            complete("snoozed", "已稍后提醒 " + UnifiedAlarmPolicy.SNOOZE_MINUTES + " 分钟");
+            Instant now = Instant.now();
+            Alarm updated = alarm.snoozedAt(now, ZoneId.systemDefault());
+            AlarmScheduler.ScheduleResult result = scheduler.schedule(updated);
+            if (result.result() != AlarmScheduler.Result.SCHEDULED) {
+                throw new IllegalStateException(result.detail());
+            }
+            new AlarmRepository(this).save(updated);
+            alarm = updated;
+            String target =
+                    DateTimeFormatter.ofPattern("HH:mm")
+                            .format(result.triggerAt().atZone(ZoneId.systemDefault()));
+            complete("snoozed", "闹钟已改为 " + target + " 并开启");
         } catch (RuntimeException error) {
+            if (alarm != null) scheduler.cancel(alarm.id());
             currentDetail = "无法精确安排稍后提醒";
             broadcastState("BLOCKED", currentDetail);
         }

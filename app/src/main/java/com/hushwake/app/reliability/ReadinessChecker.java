@@ -30,6 +30,7 @@ public final class ReadinessChecker {
             boolean backgroundAllowed,
             boolean standbyAllowed,
             boolean batteryOptimizationExempt,
+            boolean oemAutostartConfirmed,
             boolean bluetoothPermission,
             boolean mediaVolume,
             String output,
@@ -54,7 +55,8 @@ public final class ReadinessChecker {
                     && fullScreen
                     && backgroundAllowed
                     && standbyAllowed
-                    && batteryOptimizationExempt;
+                    && batteryOptimizationExempt
+                    && oemAutostartConfirmed;
         }
     }
 
@@ -116,6 +118,7 @@ public final class ReadinessChecker {
                 backgroundAllowed,
                 standbyAllowed,
                 batteryOptimizationExempt,
+                preferences.oemAutostartConfirmed(Build.MANUFACTURER),
                 bluetooth,
                 audio.mediaVolume() > 0,
                 !headsetConnected

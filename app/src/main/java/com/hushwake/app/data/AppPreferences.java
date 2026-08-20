@@ -2,6 +2,7 @@ package com.hushwake.app.data;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import com.hushwake.app.reliability.OemAutostartPolicy;
 import java.security.SecureRandom;
 import java.util.Base64;
 
@@ -10,6 +11,9 @@ public final class AppPreferences {
     private static final String NAME = "hushwake_preferences";
     private static final String KEY_INSTALL_SALT = "install_salt";
     private static final String KEY_ALARM_WAKE_AUDIT_PENDING = "alarm_wake_audit_pending";
+    private static final String KEY_OEM_AUTOSTART_CONFIRMED_FOR = "oem_autostart_confirmed_for";
+    private static final String KEY_OEM_AUTOSTART_CONFIRMATION_PENDING =
+            "oem_autostart_confirmation_pending";
     private static final int OUTPUT_POLICY_VERSION = 1;
     private final SharedPreferences values;
 
@@ -41,6 +45,38 @@ public final class AppPreferences {
         if (!values.getBoolean(KEY_ALARM_WAKE_AUDIT_PENDING, false)) return false;
         values.edit().remove(KEY_ALARM_WAKE_AUDIT_PENDING).commit();
         return true;
+    }
+
+    public boolean oemAutostartConfirmed(String manufacturer) {
+        if (!OemAutostartPolicy.requiresManualConfirmation(manufacturer)) return true;
+        return OemAutostartPolicy.confirmationKey(manufacturer)
+                .equals(values.getString(KEY_OEM_AUTOSTART_CONFIRMED_FOR, ""));
+    }
+
+    public void beginOemAutostartConfirmation(String manufacturer) {
+        values.edit()
+                .putString(
+                        KEY_OEM_AUTOSTART_CONFIRMATION_PENDING,
+                        OemAutostartPolicy.confirmationKey(manufacturer))
+                .commit();
+    }
+
+    public boolean oemAutostartConfirmationPending(String manufacturer) {
+        return OemAutostartPolicy.confirmationKey(manufacturer)
+                .equals(values.getString(KEY_OEM_AUTOSTART_CONFIRMATION_PENDING, ""));
+    }
+
+    public void finishOemAutostartConfirmation(String manufacturer, boolean confirmed) {
+        SharedPreferences.Editor editor =
+                values.edit().remove(KEY_OEM_AUTOSTART_CONFIRMATION_PENDING);
+        if (confirmed) {
+            editor.putString(
+                    KEY_OEM_AUTOSTART_CONFIRMED_FOR,
+                    OemAutostartPolicy.confirmationKey(manufacturer));
+        } else {
+            editor.remove(KEY_OEM_AUTOSTART_CONFIRMED_FOR);
+        }
+        editor.commit();
     }
 
     public boolean testAlarmPassed() {

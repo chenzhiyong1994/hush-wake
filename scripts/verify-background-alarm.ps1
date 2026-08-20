@@ -2,7 +2,8 @@ param(
     [string]$Adb = "adb",
     [string]$Apk = "app\build\outputs\apk\debug\app-debug.apk",
     [switch]$KeepBackgroundProcess,
-    [switch]$OpenHomeWhileRinging
+    [switch]$OpenHomeWhileRinging,
+    [switch]$SnoozeWhileRinging
 )
 
 $ErrorActionPreference = "Stop"
@@ -173,6 +174,54 @@ try {
             [regex]::Match($powerAfter, 'mWakefulness=([^\r\n]+)').Groups[1].Value
         throw "Alarm did not present RingingActivity; wakefulness after trigger: $wakefulness`n$activityLog"
     }
+    if ($SnoozeWhileRinging) {
+        $beforeSnooze = [long](((Invoke-Adb -Arguments @("shell", "date", "+%s%3N")) -join "").Trim())
+        Tap-UiText -Text "稍后 5 分钟"
+        Start-Sleep -Seconds 1
+        $afterSnooze = [long](((Invoke-Adb -Arguments @("shell", "date", "+%s%3N")) -join "").Trim())
+        $row =
+            ((Invoke-Adb -Arguments @(
+                    "shell",
+                    "sqlite3",
+                    "/data/data/$packageName/databases/hushwake.db",
+                    "'SELECT id,hour,minute,repeat_mask,enabled,snooze_target_epoch_ms FROM alarms ORDER BY id LIMIT 1;'")) -join "").Trim()
+        $fields = $row -split '\|'
+        if ($fields.Count -ne 6) {
+            throw "Unable to read the snoozed alarm row: $row"
+        }
+        $snoozeTarget = [long]$fields[5]
+        if ($fields[3] -ne "0" -or $fields[4] -ne "1") {
+            throw "Snooze did not replace the same alarm with an enabled one-time target: $row"
+        }
+        if ($snoozeTarget -lt ($beforeSnooze + 299000L) -or
+                $snoozeTarget -gt ($afterSnooze + 301000L)) {
+            throw "Snooze target is not five minutes after the tap: $row"
+        }
+        $expectedTime = "{0:D2}:{1:D2}" -f [int]$fields[1], [int]$fields[2]
+        Invoke-Adb -Arguments @(
+            "shell", "am", "start", "-W",
+            "-a", "android.intent.action.MAIN",
+            "-c", "android.intent.category.LAUNCHER",
+            "-n", "$packageName/.HomeActivity") | Out-Null
+        Start-Sleep -Seconds 1
+        if (-not (Get-UiXml).SelectSingleNode("//node[@text='$expectedTime']")) {
+            throw "Home did not show the snoozed alarm time $expectedTime."
+        }
+        $targetAfterReopen =
+            ((Invoke-Adb -Arguments @(
+                    "shell",
+                    "sqlite3",
+                    "/data/data/$packageName/databases/hushwake.db",
+                    "'SELECT snooze_target_epoch_ms FROM alarms ORDER BY id LIMIT 1;'")) -join "").Trim()
+        if ([long]$targetAfterReopen -ne $snoozeTarget) {
+            throw "Opening Home changed the persisted snooze target."
+        }
+        $servicesAfterSnooze =
+            (Invoke-Adb -Arguments @("shell", "dumpsys", "activity", "services", $packageName)) -join "`n"
+        if ($servicesAfterSnooze -match 'AlarmRingingService') {
+            throw "Ringing service was still active after snoozing."
+        }
+    }
 } finally {
     try {
         Invoke-Adb -Arguments @("wait-for-device") | Out-Null
@@ -183,4 +232,8 @@ try {
     }
 }
 
-Write-Output "PASS: Android triggered an audible alarm and presented its ringing screen after the app left foreground."
+if ($SnoozeWhileRinging) {
+    Write-Output "PASS: background alarm rang; snooze updated the same enabled alarm and survived app reconciliation."
+} else {
+    Write-Output "PASS: Android triggered an audible alarm and presented its ringing screen after the app left foreground."
+}

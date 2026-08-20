@@ -9,6 +9,7 @@ public final class AlarmWakePermissionPolicy {
         BACKGROUND_RESTRICTED,
         STANDBY_RESTRICTED,
         BATTERY_OPTIMIZATION,
+        OEM_AUTOSTART_UNCONFIRMED,
         NONE
     }
 
@@ -20,13 +21,16 @@ public final class AlarmWakePermissionPolicy {
             boolean fullScreen,
             boolean backgroundAllowed,
             boolean standbyAllowed,
-            boolean batteryOptimizationExempt) {
+            boolean batteryOptimizationExempt,
+            boolean oemAutostartConfirmed) {
         if (!exactAlarm) return Issue.EXACT_ALARM;
         if (!notifications) return Issue.NOTIFICATIONS;
         if (!fullScreen) return Issue.FULL_SCREEN;
         if (!backgroundAllowed) return Issue.BACKGROUND_RESTRICTED;
         if (!standbyAllowed) return Issue.STANDBY_RESTRICTED;
         if (!batteryOptimizationExempt) return Issue.BATTERY_OPTIMIZATION;
+        if (!oemAutostartConfirmed) return Issue.OEM_AUTOSTART_UNCONFIRMED;
         return Issue.NONE;
     }
+
 }
