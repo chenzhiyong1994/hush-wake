@@ -1,0 +1,11 @@
+Use case: ads-marketing
+Asset type: premium vertical social-media poster background for WeChat Moments, 4:5 portrait
+Primary request: create an original atmospheric key visual for HushWake, an Android alarm and sleep-sound app that sends sound to the right output
+Scene/backdrop: deep midnight navy field with a subtle editorial grain; an elegant continuous acoustic ribbon arcs upward through the center, transitioning from cool moonlit cobalt and mint at the lower left into warm dawn amber and soft cream at the upper right; tiny restrained particles suggest sound and time
+Subject: one sculptural flowing sound ribbon, a quiet crescent-like blue volume at one end and a warm sunrise-like glow at the other, expressing sleep becoming wakefulness
+Style/medium: refined 3D editorial abstraction, tactile satin and translucent glass, premium Chinese technology brand campaign, calm but memorable, not photorealistic
+Composition/framing: portrait 4:5, generous clean negative space across the upper left for a large headline, open lower-right area for a QR code and metadata, main ribbon occupies the middle diagonal without touching edges
+Lighting/mood: intimate night, soft volumetric glow, trustworthy, gentle, precise
+Color palette: near-black #080D14, deep navy #111827, warm amber #FFB34D, cream #FFF0C7, mint #57DAC9, cobalt #2563EB
+Constraints: background artwork only; no words, no letters, no numbers, no logos, no QR code, no phone mockup, no watermark, no border; preserve clean text-safe areas; polished at advertising-campaign quality
+Avoid: generic purple gradient, neon cyberpunk, busy starfield, stock-photo look, excessive lens flares, clocks with readable numerals
