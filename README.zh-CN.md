@@ -21,6 +21,10 @@
   安全优先的 Android 智能输出闹钟与助眠声
 </p>
 
+<p align="center">
+  <a href="https://github.com/chenzhiyong1994/hush-wake/releases/download/v0.4.2-beta/HushWake-0.4.2-beta.apk"><strong>下载正式签名的 0.4.2-beta APK</strong></a>
+</p>
+
 闹钟很擅长叫醒一个人，却也常常顺便叫醒一屋子人。
 
 HushWake 想解决的是一个看似简单、实际很容易出错的问题：**没有耳机时正常外放；检测到耳机时，只在确认当前实际音频路径安全后播放。** 如果耳机断开、路由改变或系统给出的证据不足，应用会先静音再停止，而不是为了“继续有声”悄悄切回扬声器。
