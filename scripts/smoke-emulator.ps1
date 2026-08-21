@@ -97,6 +97,9 @@ foreach ($screen in $screens) {
     Assert-UiText $screen.Marker
 }
 
+Assert-UiText "✓ 自启动已确认"
+Assert-UiTextAbsent "音量调节"
+
 Assert-UiText "声音库"
 Assert-UiText "左右滑动选择 8 种原声"
 Tap-UiText "▶  播放助眠声"

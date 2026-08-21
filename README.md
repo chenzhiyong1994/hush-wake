@@ -22,7 +22,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/chenzhiyong1994/hush-wake/releases/download/v0.4.4-beta/HushWake-0.4.4-beta.apk"><strong>Download the signed 0.4.4-beta APK</strong></a>
+  <a href="https://github.com/chenzhiyong1994/hush-wake/releases/download/v0.4.5-beta/HushWake-0.4.5-beta.apk"><strong>Download the signed 0.4.5-beta APK</strong></a>
 </p>
 
 Alarms are very good at waking one person—and often everyone else in the room.
@@ -30,7 +30,7 @@ Alarms are very good at waking one person—and often everyone else in the room.
 HushWake tackles a deceptively simple problem: **use normal speaker output when no headphones are present, but play through headphones only after the current audio route has been verified as safe.** If the headphones disconnect, the route changes, or Android cannot provide enough evidence, HushWake mutes first and stops instead of silently falling back to a speaker.
 
 > [!IMPORTANT]
-> `0.4.4-beta` contains the complete core feature set, but it remains a functional beta rather than a publicly validated stable release. Real-device, zero-speaker-leakage testing is still a release gate; a successful build does not prove that every device is safe.
+> `0.4.5-beta` contains the complete core feature set, but it remains a functional beta rather than a publicly validated stable release. Real-device, zero-speaker-leakage testing is still a release gate; a successful build does not prove that every device is safe.
 
 ## Why HushWake
 

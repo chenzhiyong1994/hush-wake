@@ -13,6 +13,7 @@ import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.RippleDrawable;
 import android.media.AudioDeviceCallback;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
@@ -416,11 +417,6 @@ public final class HomeActivity extends Activity {
             root.addView(Ui.space(this, 14));
             root.addView(permission);
         }
-        if (!readiness.oemAutostartConfirmed()) {
-            root.addView(Ui.space(this, 10));
-            root.addView(oemAutostartBanner());
-        }
-
         List<Alarm> items = alarms.listAll();
         root.addView(Ui.space(this, 16));
         root.addView(nextAlarmCard(items));
@@ -961,8 +957,14 @@ public final class HomeActivity extends Activity {
         int accent;
         int dotColor;
         int iconResource = R.drawable.ic_output_speaker;
-        Runnable action = null;
-        String actionLabel = null;
+        Runnable action = this::requestOemAutostart;
+        String actionLabel =
+                status.oemAutostartConfirmed() ? "✓ 自启动已确认" : "! 自启动待确认";
+        int actionAccent = status.oemAutostartConfirmed() ? Ui.WARM : Ui.ACID;
+        int actionFill =
+                status.oemAutostartConfirmed()
+                        ? Color.argb(28, Color.red(Ui.WARM), Color.green(Ui.WARM), Color.blue(Ui.WARM))
+                        : Ui.ACID_SOFT;
         if (!status.bluetoothPermission()) {
             title = "允许蓝牙权限后自动选择输出";
             detail = "用于判断耳机是否连接，不读取或保存耳机名称。";
@@ -970,13 +972,13 @@ public final class HomeActivity extends Activity {
             dotColor = Ui.ACID;
             action = this::requestBluetooth;
             actionLabel = "允许";
+            actionAccent = Ui.ACID;
+            actionFill = Ui.ACID_SOFT;
         } else if (!status.mediaVolume()) {
             title = "手机媒体音量当前为 0";
             detail = "悄醒不会替你调高音量。";
             accent = Ui.ACID;
             dotColor = Ui.DANGER;
-            action = () -> startActivity(new Intent(Settings.ACTION_SOUND_SETTINGS));
-            actionLabel = "音量调节";
         } else if (!status.outputSelectable()) {
             title = "检测到多个耳机输出";
             detail = "请暂时只保留一个耳机连接。";
@@ -989,18 +991,22 @@ public final class HomeActivity extends Activity {
             accent = Ui.WARM;
             dotColor = Ui.WARM;
             iconResource = R.drawable.ic_output_headphones;
-            action = () -> startActivity(new Intent(Settings.ACTION_SOUND_SETTINGS));
-            actionLabel = "音量调节";
         } else {
             title = "扬声器播放";
             detail = "内置音效引擎 · 跟随系统音量";
             accent = Ui.ACID;
             dotColor = Ui.WARM;
-            action = () -> startActivity(new Intent(Settings.ACTION_SOUND_SETTINGS));
-            actionLabel = "音量调节";
         }
         return outputStatusCard(
-                title, detail, accent, dotColor, iconResource, actionLabel, action);
+                title,
+                detail,
+                accent,
+                dotColor,
+                iconResource,
+                actionLabel,
+                actionAccent,
+                actionFill,
+                action);
     }
 
     private View alarmPermissionBanner(ReadinessChecker.Status status) {
@@ -1055,15 +1061,6 @@ public final class HomeActivity extends Activity {
         return null;
     }
 
-    private View oemAutostartBanner() {
-        return infoBanner(
-                "自启动尚未确认",
-                "未开启时，收起或退出应用后闹铃可能无法唤起。请在厂商的应用启动或电池管理中允许悄醒自启动。",
-                Ui.ACID,
-                "去设置",
-                this::requestOemAutostart);
-    }
-
     private boolean showPendingOemAutostartConfirmation() {
         if (wakePermissionDialogVisible
                 || !preferences.oemAutostartConfirmationPending(Build.MANUFACTURER)) {
@@ -1080,13 +1077,15 @@ public final class HomeActivity extends Activity {
                                 (ignoredDialog, which) -> {
                                     preferences.finishOemAutostartConfirmation(
                                             Build.MANUFACTURER, true);
-                                    showScreen(SCREEN_ALARMS, false);
+                                    showScreen(currentScreen, false);
                                 })
                         .setNegativeButton(
                                 "还没开启",
-                                (ignoredDialog, which) ->
+                                (ignoredDialog, which) -> {
                                         preferences.finishOemAutostartConfirmation(
-                                                Build.MANUFACTURER, false))
+                                                Build.MANUFACTURER, false);
+                                    showScreen(currentScreen, false);
+                                })
                         .create();
         dialog.setOnDismissListener(ignored -> wakePermissionDialogVisible = false);
         dialog.show();
@@ -1161,6 +1160,8 @@ public final class HomeActivity extends Activity {
             int dotColor,
             int iconResource,
             String actionLabel,
+            int actionAccent,
+            int actionFill,
             Runnable action) {
         LinearLayout card = Ui.card(this, Ui.GLASS);
         card.setPadding(Ui.dp(this, 12), Ui.dp(this, 11), Ui.dp(this, 12), Ui.dp(this, 11));
@@ -1200,11 +1201,21 @@ public final class HomeActivity extends Activity {
         copy.addView(description);
         row.addView(copy, new LinearLayout.LayoutParams(0, -2, 1));
         if (action != null) {
-            TextView button = Ui.text(this, actionLabel, 12, Ui.ACID, Ui.bold());
+            TextView button = Ui.text(this, actionLabel, 12, actionAccent, Ui.bold());
             button.setGravity(Gravity.CENTER);
             button.setPadding(
                     Ui.dp(this, 11), Ui.dp(this, 7), Ui.dp(this, 11), Ui.dp(this, 7));
-            button.setBackground(Ui.round(this, Ui.ACID_SOFT, 14, Ui.ACID_SOFT));
+            button.setBackground(
+                    new RippleDrawable(
+                            ColorStateList.valueOf(
+                                    Color.argb(
+                                            48,
+                                            Color.red(actionAccent),
+                                            Color.green(actionAccent),
+                                            Color.blue(actionAccent))),
+                            Ui.round(this, actionFill, 14, actionAccent),
+                            null));
+            button.setOnClickListener(v -> action.run());
             row.addView(button);
             card.setOnClickListener(v -> action.run());
         }
