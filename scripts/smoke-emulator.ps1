@@ -113,6 +113,8 @@ if ($minuteLabels.Count -ne 1) {
 Tap-UiText "停止"
 
 Tap-UiText "闹钟"
+Assert-UiText "其他闹钟"
+Assert-UiTextAbsent "所有闹钟"
 Assert-UiTextAbsent "不同于普通闹钟：悄醒只用媒体音播放，跟随手机媒体音量；连接耳机后只走已验证耳机，断连也不会转到扬声器。"
 Assert-UiTextAbsent "确认耳机"
 Assert-UiTextAbsent "开始 10 秒隐私测试"

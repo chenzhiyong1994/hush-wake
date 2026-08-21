@@ -173,6 +173,23 @@ try {
         if (-not $runningProcess) {
             throw "Opening HomeActivity while an alarm is ringing left no app process."
         }
+        $ringingHome = Get-UiXml
+        if (-not $ringingHome.SelectSingleNode("//node[@text='✦  下一次响铃']") -or
+                -not $ringingHome.SelectSingleNode("//node[contains(@text,'当前闹钟正在响铃')]") -or
+                -not $ringingHome.SelectSingleNode("//node[@text='正在响铃 · 立即停止']")) {
+            throw "Home did not keep the active occurrence in the next-alarm focus card."
+        }
+        if ($ringingHome.SelectSingleNode("//node[@text='暂无已开启闹钟']")) {
+            throw "Home showed an empty next-alarm card while an occurrence was ringing."
+        }
+        if (-not $ringingHome.SelectSingleNode("//node[@text='其他闹钟']") -or
+                -not $ringingHome.SelectSingleNode("//node[@text='0 个设置']")) {
+            throw "Home duplicated the active occurrence in the secondary alarm list."
+        }
+        $focusSwitch = $ringingHome.SelectSingleNode("//node[@class='android.widget.Switch']")
+        if (-not $focusSwitch -or $focusSwitch.checked -ne "true") {
+            throw "The ringing focus card did not expose an enabled switch."
+        }
     }
     $activityLog =
         (Invoke-Adb -Arguments @("logcat", "-d", "-v", "brief", "ActivityTaskManager:I", "*:S")) -join "`n"

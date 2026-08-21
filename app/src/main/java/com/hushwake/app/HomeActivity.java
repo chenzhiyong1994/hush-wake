@@ -36,6 +36,7 @@ import android.widget.SeekBar;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
+import com.hushwake.app.alarm.AlarmHomeLayoutPolicy;
 import com.hushwake.app.alarm.AlarmHomeRefreshPolicy;
 import com.hushwake.app.alarm.AlarmRingingService;
 import com.hushwake.app.alarm.AlarmScheduler;
@@ -45,7 +46,6 @@ import com.hushwake.app.alarm.AlarmStopPolicy;
 import com.hushwake.app.data.AlarmRepository;
 import com.hushwake.app.data.AppPreferences;
 import com.hushwake.app.domain.Alarm;
-import com.hushwake.app.domain.AlarmTimeCalculator;
 import com.hushwake.app.noise.NoiseSessionStore;
 import com.hushwake.app.noise.NoiseTimerPresentation;
 import com.hushwake.app.noise.SleepSoundCatalog;
@@ -418,14 +418,21 @@ public final class HomeActivity extends Activity {
             root.addView(permission);
         }
         List<Alarm> items = alarms.listAll();
+        AlarmSessionStore.Snapshot active = new AlarmSessionStore(this).load();
+        AlarmHomeLayoutPolicy.Layout layout =
+                AlarmHomeLayoutPolicy.arrange(
+                        items,
+                        active.alarmId(),
+                        active.state(),
+                        Instant.now(),
+                        ZoneId.systemDefault());
         root.addView(Ui.space(this, 16));
-        root.addView(nextAlarmCard(items));
+        root.addView(nextAlarmCard(layout));
         root.addView(Ui.space(this, 20));
-        root.addView(sectionHeader("所有闹钟", items.size() + " 个设置"));
+        root.addView(sectionHeader("其他闹钟", layout.others().size() + " 个设置"));
         root.addView(Ui.space(this, 10));
-        if (!items.isEmpty()) {
-            AlarmSessionStore.Snapshot active = new AlarmSessionStore(this).load();
-            for (Alarm alarm : items) {
+        if (!layout.others().isEmpty()) {
+            for (Alarm alarm : layout.others()) {
                 root.addView(alarmCard(alarm, active));
                 root.addView(Ui.space(this, 12));
             }
@@ -511,19 +518,9 @@ public final class HomeActivity extends Activity {
         return card;
     }
 
-    private View nextAlarmCard(List<Alarm> items) {
-        Alarm nextAlarm = null;
-        Instant nextAt = null;
-        Instant now = Instant.now();
-        for (Alarm alarm : items) {
-            if (!alarm.enabled()) continue;
-            Instant candidate = AlarmTimeCalculator.next(alarm, now, ZoneId.systemDefault());
-            if (nextAt == null || candidate.isBefore(nextAt)) {
-                nextAt = candidate;
-                nextAlarm = alarm;
-            }
-        }
-
+    private View nextAlarmCard(AlarmHomeLayoutPolicy.Layout layout) {
+        Alarm nextAlarm = layout.focus();
+        Instant nextAt = layout.focusAt();
         LinearLayout card = Ui.card(this, Ui.GLASS);
         card.setPadding(
                 Ui.dp(this, 18), Ui.dp(this, 17), Ui.dp(this, 18), Ui.dp(this, 17));
@@ -549,14 +546,24 @@ public final class HomeActivity extends Activity {
         TextView date =
                 Ui.text(
                         this,
-                        DateTimeFormatter.ofPattern(
-                                        "M月d日 E", java.util.Locale.SIMPLIFIED_CHINESE)
-                                .format(nextAt.atZone(ZoneId.systemDefault())),
+                        layout.focusRinging()
+                                ? "正在响铃"
+                                : DateTimeFormatter.ofPattern(
+                                                "M月d日 E", java.util.Locale.SIMPLIFIED_CHINESE)
+                                        .format(nextAt.atZone(ZoneId.systemDefault())),
                         11,
-                        Ui.MUTED,
-                        Typeface.MONOSPACE);
+                        layout.focusRinging() ? Ui.WARM : Ui.MUTED,
+                        layout.focusRinging() ? Ui.medium() : Typeface.MONOSPACE);
         date.setGravity(Gravity.END);
         heading.addView(date, new LinearLayout.LayoutParams(0, -2, 1));
+        Switch enabled = new Switch(this);
+        enabled.setChecked(true);
+        Ui.styleSwitch(this, enabled);
+        enabled.setOnCheckedChangeListener(
+                (button, checked) -> setAlarmEnabled(nextAlarm, checked));
+        LinearLayout.LayoutParams switchParams = new LinearLayout.LayoutParams(-2, -2);
+        switchParams.leftMargin = Ui.dp(this, 8);
+        heading.addView(enabled, switchParams);
         card.addView(heading);
 
         LinearLayout timeRow = new LinearLayout(this);
@@ -587,7 +594,14 @@ public final class HomeActivity extends Activity {
         footer.setGravity(Gravity.CENTER_VERTICAL);
         footer.setPadding(0, Ui.dp(this, 11), 0, 0);
         TextView countdown =
-                Ui.text(this, "◷  " + formatCountdown(now, nextAt), 12, Ui.PAPER, Ui.medium());
+                Ui.text(
+                        this,
+                        layout.focusRinging()
+                                ? "●  当前闹钟正在响铃"
+                                : "◷  " + formatCountdown(Instant.now(), nextAt),
+                        12,
+                        layout.focusRinging() ? Ui.WARM : Ui.PAPER,
+                        Ui.medium());
         footer.addView(countdown, new LinearLayout.LayoutParams(0, -2, 1));
         String note =
                 nextAlarm.label().isBlank()
@@ -597,6 +611,16 @@ public final class HomeActivity extends Activity {
         card.addView(footer);
 
         Alarm target = nextAlarm;
+        if (layout.focusRinging()) {
+            Button stop = Ui.button(this, "正在响铃 · 立即停止", false);
+            Ui.marginTop(stop, 12);
+            stop.setOnClickListener(
+                    v -> {
+                        stopIfRinging(target.id());
+                        Toast.makeText(this, "已停止这个闹钟", Toast.LENGTH_SHORT).show();
+                    });
+            card.addView(stop);
+        }
         card.setOnClickListener(
                 v ->
                         startActivity(

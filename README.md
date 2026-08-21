@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://github.com/chenzhiyong1994/hush-wake/actions/workflows/android-ci.yml"><img src="https://github.com/chenzhiyong1994/hush-wake/actions/workflows/android-ci.yml/badge.svg" alt="Android CI"></a>
-  <img src="https://img.shields.io/badge/status-0.4.2--beta-f6bf6f" alt="0.4.2 beta">
+  <img src="https://img.shields.io/badge/status-0.4.6--beta-f6bf6f" alt="0.4.6 beta">
   <img src="https://img.shields.io/badge/Android-12%2B-e9ff70?logo=android&logoColor=09110f" alt="Android 12+">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-8fb8a8" alt="Apache License 2.0"></a>
 </p>
@@ -22,7 +22,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/chenzhiyong1994/hush-wake/releases/download/v0.4.5-beta/HushWake-0.4.5-beta.apk"><strong>Download the signed 0.4.5-beta APK</strong></a>
+  <a href="https://github.com/chenzhiyong1994/hush-wake/releases/download/v0.4.6-beta/HushWake-0.4.6-beta.apk"><strong>Download the signed 0.4.6-beta APK</strong></a>
 </p>
 
 Alarms are very good at waking one person—and often everyone else in the room.
@@ -30,7 +30,7 @@ Alarms are very good at waking one person—and often everyone else in the room.
 HushWake tackles a deceptively simple problem: **use normal speaker output when no headphones are present, but play through headphones only after the current audio route has been verified as safe.** If the headphones disconnect, the route changes, or Android cannot provide enough evidence, HushWake mutes first and stops instead of silently falling back to a speaker.
 
 > [!IMPORTANT]
-> `0.4.5-beta` contains the complete core feature set, but it remains a functional beta rather than a publicly validated stable release. Real-device, zero-speaker-leakage testing is still a release gate; a successful build does not prove that every device is safe.
+> `0.4.6-beta` contains the complete core feature set, but it remains a functional beta rather than a publicly validated stable release. Real-device, zero-speaker-leakage testing is still a release gate; a successful build does not prove that every device is safe.
 
 ## Why HushWake
 
@@ -47,7 +47,7 @@ HushWake therefore takes a deliberately conservative approach:
 
 | Area | Current implementation |
 | --- | --- |
-| Alarms | One-time and weekly schedules, exact scheduling, reboot/time-change recovery, lock-screen entry, high-priority notification, stop, one snooze, and maximum ringing duration |
+| Alarms | One-time and weekly schedules, exact scheduling, a single next-alarm focus card, reboot/time-change recovery, lock-screen entry, high-priority notification, stop, one snooze, and maximum ringing duration |
 | Smart output | Normal media output when no headphones are present; guarded routing when exactly one headphone device is detected; unsafe routes are blocked |
 | Headphone routing | Automatic dual-layer muted startup and actual-route verification; no separate manual test page; disconnect, focus loss, or multiple candidates stop playback |
 | Sleep sounds | Eight real ambient recordings with textured cards, pause, notification controls, 5–120 minute timer, fade-out, and instant sound switching without resetting the timer |
