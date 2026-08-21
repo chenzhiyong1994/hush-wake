@@ -1,6 +1,6 @@
 # HushWake Android 实现与验证
 
-本文记录 `0.4.2-beta` 的工程入口；产品行为以 `hush-wake-prd.md` 为准，实体机安全验收以 `device-test-guide.md` 为准。
+本文记录 `0.4.3-beta` 的工程入口；产品行为以 `hush-wake-prd.md` 为准，实体机安全验收以 `device-test-guide.md` 为准。
 
 ## 运行结构
 

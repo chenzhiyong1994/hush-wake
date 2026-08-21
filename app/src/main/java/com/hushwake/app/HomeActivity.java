@@ -842,12 +842,6 @@ public final class HomeActivity extends Activity {
         foreground.setPadding(
                 Ui.dp(this, 13), Ui.dp(this, 13), Ui.dp(this, 13), Ui.dp(this, 13));
         int accent = soundAccent(item.id());
-        View accentBar = new View(this);
-        accentBar.setBackground(Ui.round(this, accent, 999, Color.TRANSPARENT));
-        LinearLayout.LayoutParams accentParams =
-                new LinearLayout.LayoutParams(Ui.dp(this, 27), Ui.dp(this, 3));
-        accentParams.bottomMargin = Ui.dp(this, 9);
-        foreground.addView(accentBar, accentParams);
         foreground.addView(Ui.text(this, item.shortLabel(), 14, Ui.PAPER, Ui.bold()));
         TextView note = Ui.text(this, item.note(), 10, Ui.MUTED, Typeface.DEFAULT);
         note.setPadding(0, Ui.dp(this, 2), 0, 0);

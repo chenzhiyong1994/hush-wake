@@ -22,7 +22,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/chenzhiyong1994/hush-wake/releases/download/v0.4.2-beta/HushWake-0.4.2-beta.apk"><strong>下载正式签名的 0.4.2-beta APK</strong></a>
+  <a href="https://github.com/chenzhiyong1994/hush-wake/releases/download/v0.4.3-beta/HushWake-0.4.3-beta.apk"><strong>下载正式签名的 0.4.3-beta APK</strong></a>
 </p>
 
 闹钟很擅长叫醒一个人，却也常常顺便叫醒一屋子人。
@@ -30,7 +30,7 @@
 HushWake 想解决的是一个看似简单、实际很容易出错的问题：**没有耳机时正常外放；检测到耳机时，只在确认当前实际音频路径安全后播放。** 如果耳机断开、路由改变或系统给出的证据不足，应用会先静音再停止，而不是为了“继续有声”悄悄切回扬声器。
 
 > [!IMPORTANT]
-> `0.4.2-beta` 已具备完整核心功能，但仍是公开源码的功能测试版，不是公开稳定发行版。真实耳机的零扬声器串音验证仍是发布门禁；源码可构建不等于所有设备都已安全通过。
+> `0.4.3-beta` 已具备完整核心功能，但仍是公开源码的功能测试版，不是公开稳定发行版。真实耳机的零扬声器串音验证仍是发布门禁；源码可构建不等于所有设备都已安全通过。
 
 ## 为什么做 HushWake
 
