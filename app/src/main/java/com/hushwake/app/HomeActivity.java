@@ -13,6 +13,8 @@ import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.media.AudioDeviceCallback;
+import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -81,8 +83,22 @@ public final class HomeActivity extends Activity {
     private String currentScreen = SCREEN_ALARMS;
     private boolean alarmReceiverRegistered;
     private boolean noiseReceiverRegistered;
+    private boolean outputDeviceCallbackRegistered;
     private boolean wakePermissionDialogVisible;
     private final Handler noiseTimerHandler = new Handler(Looper.getMainLooper());
+
+    private final AudioDeviceCallback outputDeviceUpdates =
+            new AudioDeviceCallback() {
+                @Override
+                public void onAudioDevicesAdded(AudioDeviceInfo[] addedDevices) {
+                    scheduleOutputRefresh();
+                }
+
+                @Override
+                public void onAudioDevicesRemoved(AudioDeviceInfo[] removedDevices) {
+                    scheduleOutputRefresh();
+                }
+            };
 
     private final BroadcastReceiver noiseUpdates =
             new BroadcastReceiver() {
@@ -175,6 +191,32 @@ public final class HomeActivity extends Activity {
             registerNoiseReceiver();
             noiseReceiverRegistered = true;
         }
+        if (!outputDeviceCallbackRegistered) {
+            getSystemService(AudioManager.class)
+                    .registerAudioDeviceCallback(outputDeviceUpdates, noiseTimerHandler);
+            outputDeviceCallbackRegistered = true;
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        if (outputDeviceCallbackRegistered) {
+            getSystemService(AudioManager.class).unregisterAudioDeviceCallback(outputDeviceUpdates);
+            outputDeviceCallbackRegistered = false;
+        }
+        super.onPause();
+    }
+
+    private void scheduleOutputRefresh() {
+        noiseTimerHandler.postDelayed(
+                () -> {
+                    if (!isFinishing()
+                            && preferences != null
+                            && preferences.outputPolicyAcknowledged()) {
+                        showScreen(currentScreen, false);
+                    }
+                },
+                180L);
     }
 
     @Override
@@ -941,17 +983,9 @@ public final class HomeActivity extends Activity {
             accent = Ui.DANGER;
             dotColor = Ui.DANGER;
             iconResource = R.drawable.ic_output_headphones;
-        } else if (status.headsetConnected() && !status.deviceVerified()) {
-            title = "耳机已连接 · 播放前需要确认";
-            detail = "做一次低音量测试，确认声音不会漏到扬声器。";
-            accent = Ui.WARM;
-            dotColor = Ui.ACID;
-            iconResource = R.drawable.ic_output_headphones;
-            action = () -> startActivity(new Intent(this, MainActivity.class));
-            actionLabel = "确认耳机";
         } else if (status.headsetConnected()) {
             title = "耳机播放";
-            detail = "已验证耳机路径 · 断连立即静音";
+            detail = "跟随系统媒体输出 · 播放时自动确认路由";
             accent = Ui.WARM;
             dotColor = Ui.WARM;
             iconResource = R.drawable.ic_output_headphones;

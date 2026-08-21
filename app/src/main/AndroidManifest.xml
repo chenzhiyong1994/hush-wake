@@ -46,9 +46,6 @@
             android:name=".EditAlarmActivity"
             android:exported="false" />
         <activity
-            android:name=".MainActivity"
-            android:exported="false" />
-        <activity
             android:name=".HomeActivity"
             android:exported="true"
             android:theme="@style/Theme.HushWake.Starting">

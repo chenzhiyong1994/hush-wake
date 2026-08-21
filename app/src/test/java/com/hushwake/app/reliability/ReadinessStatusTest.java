@@ -31,6 +31,29 @@ public final class ReadinessStatusTest {
         assertFalse(readyStatus(true, true, true, false).fullyReady());
     }
 
+    @Test
+    public void connectedHeadsetUsesAutomaticRouteGuardWithoutManualTestRecord() {
+        ReadinessChecker.Status status =
+                new ReadinessChecker.Status(
+                        true,
+                        true,
+                        true,
+                        true,
+                        true,
+                        true,
+                        true,
+                        true,
+                        true,
+                        "蓝牙耳机",
+                        true,
+                        true,
+                        true,
+                        true,
+                        "");
+
+        assertTrue(status.readyForSound());
+    }
+
     private static ReadinessChecker.Status readyStatus(boolean backgroundAllowed) {
         return readyStatus(backgroundAllowed, true, true);
     }
@@ -59,7 +82,6 @@ public final class ReadinessStatusTest {
                 true,
                 "智能外放 · 手机扬声器",
                 true,
-                false,
                 false,
                 true,
                 true,

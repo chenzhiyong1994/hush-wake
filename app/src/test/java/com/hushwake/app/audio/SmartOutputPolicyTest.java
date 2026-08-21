@@ -58,4 +58,17 @@ public final class SmartOutputPolicyTest {
                 SmartOutputPolicy.Mode.BLOCKED,
                 SmartOutputPolicy.confirmPublicRoute(4, 0, false));
     }
+
+    @Test
+    public void privateModeRequiresTheActualSingleHeadsetRouteWithoutManualTest() {
+        assertEquals(
+                SmartOutputPolicy.Mode.PRIVATE_HEADSET,
+                SmartOutputPolicy.confirmPrivateRoute(4, 1, true));
+        assertEquals(
+                SmartOutputPolicy.Mode.BLOCKED,
+                SmartOutputPolicy.confirmPrivateRoute(4, 1, false));
+        assertEquals(
+                SmartOutputPolicy.Mode.BLOCKED,
+                SmartOutputPolicy.confirmPrivateRoute(4, 2, true));
+    }
 }

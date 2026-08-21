@@ -35,4 +35,12 @@ public final class SmartOutputPolicy {
                 ? Mode.PUBLIC_MEDIA
                 : Mode.BLOCKED;
     }
+
+    public static Mode confirmPrivateRoute(
+            int mediaVolume, int personalOutputCount, boolean routedToSingleHeadset) {
+        Mode selected = choose(mediaVolume, personalOutputCount);
+        return selected == Mode.PRIVATE_HEADSET && routedToSingleHeadset
+                ? Mode.PRIVATE_HEADSET
+                : Mode.BLOCKED;
+    }
 }

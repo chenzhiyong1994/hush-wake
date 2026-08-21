@@ -7,20 +7,11 @@ import android.app.usage.UsageStatsManager;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.media.AudioManager;
-import android.media.AudioDeviceInfo;
 import android.os.Build;
 import android.os.PowerManager;
 import com.hushwake.app.alarm.AlarmScheduler;
 import com.hushwake.app.audio.AudioRouteInspector;
-import com.hushwake.app.audio.DeviceFingerprint;
-import com.hushwake.app.audio.DeviceIdentity;
-import com.hushwake.app.audio.PrivatePlaybackEngine;
 import com.hushwake.app.data.AppPreferences;
-import com.hushwake.app.data.DeviceVerificationRepository;
-import com.hushwake.app.domain.DeviceVerification;
-import com.hushwake.app.domain.DeviceVerificationPolicy;
-import com.hushwake.app.platform.PlatformVersion;
-import java.time.Instant;
 
 public final class ReadinessChecker {
     public record Status(
@@ -36,7 +27,6 @@ public final class ReadinessChecker {
             String output,
             boolean outputSelectable,
             boolean headsetConnected,
-            boolean deviceVerified,
             boolean outputPolicyAcknowledged,
             boolean testAlarmPassed,
             String scheduleIssue) {
@@ -46,7 +36,6 @@ public final class ReadinessChecker {
                     && bluetoothPermission
                     && mediaVolume
                     && outputSelectable
-                    && (!headsetConnected || deviceVerified)
                     && outputPolicyAcknowledged;
         }
 
@@ -87,29 +76,9 @@ public final class ReadinessChecker {
         AudioRouteInspector inspector = new AudioRouteInspector();
         AudioRouteInspector.Snapshot audio =
                 inspector.snapshot(context.getSystemService(AudioManager.class));
-        int outputType =
-                audio.preferredTarget() == null
-                        ? AudioDeviceInfo.TYPE_UNKNOWN
-                        : audio.preferredTarget().getType();
-        boolean bluetoothNeeded =
-                outputType == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP
-                        || outputType == AudioDeviceInfo.TYPE_BLE_HEADSET;
         boolean bluetooth = bluetoothGranted;
         boolean headsetConnected = !audio.personalOutputTypes().isEmpty();
         boolean outputSelectable = audio.personalOutputTypes().size() <= 1;
-        DeviceIdentity identity = DeviceFingerprint.create(context, audio.preferredTarget());
-        DeviceVerification record =
-                identity == null
-                        ? null
-                        : new DeviceVerificationRepository(context).find(identity.hash());
-        boolean verified =
-                identity != null
-                        && DeviceVerificationPolicy.isValid(
-                                record,
-                                identity.hash(),
-                                PlatformVersion.androidMajor(),
-                                PrivatePlaybackEngine.AUDIO_ENGINE_VERSION,
-                                Instant.now());
         AppPreferences preferences = new AppPreferences(context);
         return new Status(
                 new AlarmScheduler(context).canScheduleExact(),
@@ -128,7 +97,6 @@ public final class ReadinessChecker {
                                 : "多个耳机 · " + String.join(" + ", audio.personalOutputTypes()),
                 outputSelectable,
                 headsetConnected,
-                verified,
                 preferences.outputPolicyAcknowledged(),
                 preferences.testAlarmPassed(),
                 preferences.lastScheduleIssue());

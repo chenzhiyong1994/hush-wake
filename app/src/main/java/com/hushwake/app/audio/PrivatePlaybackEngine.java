@@ -15,22 +15,14 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 import com.hushwake.app.alarm.AlarmSoundCatalog;
-import com.hushwake.app.data.DeviceVerificationRepository;
-import com.hushwake.app.domain.DeviceVerification;
-import com.hushwake.app.domain.DeviceVerificationPolicy;
-import com.hushwake.app.platform.PlatformVersion;
 import com.hushwake.app.noise.SleepSoundCatalog;
 import java.io.IOException;
-import java.time.Instant;
 
 /**
  * Smart-output session shared by alarms and white noise. Speaker playback is allowed only when no
- * headset is present; headset sessions remain silent until device verification and actual routing
- * both pass.
+ * headset is present; headset sessions remain silent until the current player's actual route passes.
  */
 public final class PrivatePlaybackEngine {
-    public static final int AUDIO_ENGINE_VERSION = 4;
-
     public enum Purpose { ALARM, WHITE_NOISE }
     public enum State { IDLE, PREPARING_SILENT, VERIFYING_ROUTE, AUDIBLE, BLOCKED, STOPPED }
 
@@ -60,7 +52,6 @@ public final class PrivatePlaybackEngine {
     private final Context context;
     private final AudioManager audioManager;
     private final AudioRouteInspector inspector = new AudioRouteInspector();
-    private final DeviceVerificationRepository verifications;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final MuteLatencyTracker latencyTracker = new MuteLatencyTracker();
     private final Config config;
@@ -124,7 +115,6 @@ public final class PrivatePlaybackEngine {
     public PrivatePlaybackEngine(Context context, Config config, Listener listener) {
         this.context = context.getApplicationContext();
         this.audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
-        this.verifications = new DeviceVerificationRepository(context);
         this.config = config;
         this.listener = listener;
     }
@@ -153,9 +143,6 @@ public final class PrivatePlaybackEngine {
         }
         if (outputMode == SmartOutputPolicy.Mode.PRIVATE_HEADSET) {
             targetDevice = snapshot.preferredTarget();
-            if (!hasValidHeadsetVerification(targetDevice)) {
-                return;
-            }
         } else {
             targetDevice = null;
             verificationLevel = "智能外放";
@@ -298,6 +285,15 @@ public final class PrivatePlaybackEngine {
             block("UNSAFE_ROUTE", evaluation.summary());
             return;
         }
+        AudioRouteInspector.Snapshot snapshot = inspector.snapshot(audioManager);
+        if (SmartOutputPolicy.confirmPrivateRoute(
+                        snapshot.mediaVolume(),
+                        snapshot.personalOutputTypes().size(),
+                        true)
+                != SmartOutputPolicy.Mode.PRIVATE_HEADSET) {
+            block("UNSAFE_ROUTE", "当前媒体输出与唯一目标耳机不一致");
+            return;
+        }
         latencyTracker.onRouteVerifiedSafe();
         if (state == State.VERIFYING_ROUTE) {
             verificationLevel =
@@ -435,9 +431,6 @@ public final class PrivatePlaybackEngine {
             return;
         }
         targetDevice = snapshot.preferredTarget();
-        if (!hasValidHeadsetVerification(targetDevice)) {
-            return;
-        }
         AudioRouting router = activeRouter();
         if (router == null || !router.setPreferredDevice(targetDevice)) {
             block("PREFERRED_ROUTE_REJECTED", "耳机接入后 Android 拒绝目标路由请求");
@@ -450,27 +443,6 @@ public final class PrivatePlaybackEngine {
         notifyState("检测到耳机，已停止外放并验证耳机实际路由");
         mainHandler.removeCallbacks(routePoller);
         mainHandler.postDelayed(routePoller, ROUTE_SETTLE_MS);
-    }
-
-    private boolean hasValidHeadsetVerification(AudioDeviceInfo device) {
-        DeviceIdentity identity = DeviceFingerprint.create(context, device);
-        if (identity == null) {
-            block("DEVICE_IDENTITY_UNAVAILABLE", "无法安全识别当前耳机；请重新连接或更换耳机");
-            return false;
-        }
-        DeviceVerification record = verifications.find(identity.hash());
-        boolean valid =
-                DeviceVerificationPolicy.isValid(
-                        record,
-                        identity.hash(),
-                        PlatformVersion.androidMajor(),
-                        AUDIO_ENGINE_VERSION,
-                        Instant.now());
-        if (!valid) {
-            block("PRIVACY_TEST_REQUIRED", "当前耳机尚无有效隐私测试记录");
-            return false;
-        }
-        return true;
     }
 
     private void block(String reasonCode, String detail) {

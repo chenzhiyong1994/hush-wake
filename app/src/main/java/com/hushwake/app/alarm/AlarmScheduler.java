@@ -5,7 +5,7 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
-import com.hushwake.app.MainActivity;
+import com.hushwake.app.HomeActivity;
 import com.hushwake.app.data.AlarmRepository;
 import com.hushwake.app.data.AppPreferences;
 import com.hushwake.app.domain.Alarm;
@@ -59,7 +59,7 @@ public final class AlarmScheduler {
                         next.toEpochMilli(),
                         alarm.isSnoozed(),
                         PendingIntent.FLAG_UPDATE_CURRENT);
-        Intent open = new Intent(context, MainActivity.class);
+        Intent open = new Intent(context, HomeActivity.class);
         open.putExtra(EXTRA_ALARM_ID, alarm.id());
         PendingIntent show =
                 PendingIntent.getActivity(
