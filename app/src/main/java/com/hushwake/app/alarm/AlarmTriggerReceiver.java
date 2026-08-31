@@ -9,7 +9,6 @@ import com.hushwake.app.domain.Alarm;
 public final class AlarmTriggerReceiver extends BroadcastReceiver {
     public static final String ACTION_TRIGGER = "com.hushwake.app.action.ALARM_TRIGGER";
     public static final String EXTRA_SNOOZE = "is_snooze";
-    private static final long MISSED_WINDOW_MS = 5L * 60L * 1_000L;
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -21,8 +20,13 @@ public final class AlarmTriggerReceiver extends BroadcastReceiver {
         Alarm alarm = repository.find(alarmId);
         if (alarm == null || !alarm.enabled()) return;
 
-        long lateness = Math.max(0L, System.currentTimeMillis() - scheduledAt);
-        if (scheduledAt <= 0L || lateness > MISSED_WINDOW_MS) {
+        AlarmTriggerTimingPolicy.Decision timing =
+                AlarmTriggerTimingPolicy.evaluate(scheduledAt, System.currentTimeMillis());
+        if (timing == AlarmTriggerTimingPolicy.Decision.RESCHEDULE_EARLY) {
+            new AlarmScheduler(context).schedule(alarm);
+            return;
+        }
+        if (timing != AlarmTriggerTimingPolicy.Decision.RING) {
             advanceNormalSchedule(context, repository, alarm);
             return;
         }
