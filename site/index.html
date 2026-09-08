@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b101a">
+  <meta name="description" content="HushWake 悄醒，一款安全优先的 Android 闹钟与助眠声应用。无耳机时正常外放，耳机模式验证后发声，异常时先静音。离线使用，数据留在本机。">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="zh_CN">
+  <meta property="og:title" content="HushWake 悄醒 · 把清晨，留给自己。">
+  <meta property="og:description" content="从睡前的一场雨，到清晨的一声轻唤。安全优先的 Android 智能输出闹钟与助眠声，现已开放 beta 体验。">
+  <meta property="og:url" content="https://chenzhiyong1994.github.io/hush-wake/">
+  <link rel="canonical" href="https://chenzhiyong1994.github.io/hush-wake/">
+  <link rel="icon" href="assets/mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+  <title>HushWake 悄醒 · 把清晨，留给自己。</title>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳转到主要内容</a>
+  <svg class="symbol-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="icon-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
+    <symbol id="icon-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M5 16v4h14v-4"/></symbol>
+    <symbol id="icon-headphones" viewBox="0 0 24 24"><path d="M4 14v-3a8 8 0 0 1 16 0v3M4 12H3v7h4v-7zm16 0h1v7h-4v-7z"/></symbol>
+    <symbol id="icon-shield" viewBox="0 0 24 24"><path d="m12 3 8 3v6c0 4-4 7-8 9-4-2-8-5-8-9V6zM8 12l3 3 5-6"/></symbol>
+    <symbol id="icon-moon" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5Z"/></symbol>
+    <symbol id="icon-alarm" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 8v5l3 2M3 5l3-3m12 0 3 3M6 20l-1 2m13-2 1 2"/></symbol>
+    <symbol id="icon-rain" viewBox="0 0 24 24"><path d="M6 14a4 4 0 1 1 1-7 5 5 0 0 1 10-1 4 4 0 1 1 1 8M7 17l-1 3m6-3-1 3m6-3-1 3"/></symbol>
+    <symbol id="icon-ocean" viewBox="0 0 24 24"><path d="M2 8q3-4 6 0t6 0 6 0M2 13q3-4 6 0t6 0 6 0M2 18q3-4 6 0t6 0 6 0"/></symbol>
+    <symbol id="icon-forest" viewBox="0 0 24 24"><path d="m8 3-6 9h4l-4 5h12l-4-5h4zm0 14v4m9-15 5 8h-3l3 4h-6m1 0v3"/></symbol>
+    <symbol id="icon-fire" viewBox="0 0 24 24"><path d="M13 2c1 7-6 7-3 12 2-1 3-3 3-5 5 3 7 5 6 8a7 7 0 0 1-14-1c0-4 5-7 8-14Z"/></symbol>
+    <symbol id="icon-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 5v2"/></symbol>
+    <symbol id="icon-github" viewBox="0 0 24 24"><path d="M9 19c-4 1-4-2-6-2m12 5v-3.5c0-1 .1-1.7-.5-2.3 3.5-.4 7-1.7 7-7.5a6 6 0 0 0-1.6-4.2 5.5 5.5 0 0 0-.2-4s-1.3-.4-4.3 1.6a15 15 0 0 0-7.8 0C4.6.1 3.3.5 3.3.5a5.5 5.5 0 0 0-.2 4A6 6 0 0 0 1.5 9c0 5.5 3.5 6.8 7 7.2-.6.6-.6 1.5-.5 2.3V22" transform="translate(1 1) scale(.92)"/></symbol>
+  </svg>
+
+  <header class="site-header wrap">
+    <a class="brand" href="#" aria-label="HushWake 悄醒首页"><img src="assets/mark.svg" width="42" height="42" alt=""><span>HushWake <span class="brand-cn">悄醒</span></span></a>
+    <nav aria-label="主导航">
+      <a href="#experience">使用体验</a>
+      <a href="#safety">安心设计</a>
+      <a class="nav-github" href="https://github.com/chenzhiyong1994/hush-wake" aria-label="GitHub 源代码"><svg class="icon" aria-hidden="true"><use href="#icon-github"/></svg><span>GitHub</span><span aria-hidden="true">↗</span></a>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section class="hero wrap" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <a class="release-pill" href="#download"><span class="status-dot"></span> 0.4.8-beta 现已开放体验 <span aria-hidden="true">↗</span></a>
+        <p class="eyebrow hero-eyebrow">A QUIETER WAY TO WAKE</p>
+        <h1 id="hero-title">把清晨，<br><span>留给自己。</span></h1>
+        <p class="hero-description">从睡前的一场雨，到清晨的一声轻唤。<br>悄醒，让休息与醒来，多一点自己的空间。</p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="https://github.com/chenzhiyong1994/hush-wake/releases/download/v0.4.8-beta/HushWake-0.4.8-beta.apk"><svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>下载 Android 测试版</a>
+          <a class="text-link" href="#experience">认识悄醒 <svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg></a>
+        </div>
+        <p class="hero-meta">Android 12+ <span>·</span> 无需账号 <span>·</span> 离线使用</p>
+        <p class="beta-note">当前为功能测试版，耳机兼容性仍在实体机验证中。</p>
+      </div>
+
+      <div class="hero-visual">
+        <div class="orbit orbit-outer" aria-hidden="true"></div><div class="orbit orbit-inner" aria-hidden="true"></div>
+        <div class="orbit-dot" aria-hidden="true"></div>
+        <p class="visual-note note-top"><span class="note-line"></span> 夜晚慢下来，清晨轻一点</p>
+        <div class="phone" aria-label="悄醒应用界面示意">
+          <div class="phone-top" aria-hidden="true"><span>22:30</span><span class="camera"></span><span>▰ ▰</span></div>
+          <div class="phone-heading"><span class="phone-brand">悄醒<span>HushWake</span></span><svg class="icon" aria-hidden="true"><use href="#icon-moon"/></svg></div>
+          <div class="route-chip"><svg class="icon" aria-hidden="true"><use href="#icon-headphones"/></svg><span>耳机模式<small>每次播放，先验证输出</small></span><span class="status-dot"></span></div>
+          <div id="alarm-preview" class="preview-panel">
+            <div class="alarm-card"><div class="card-kicker"><span>下一次响铃</span><svg class="icon" aria-hidden="true"><use href="#icon-alarm"/></svg></div><div class="alarm-time">07<span>:</span>30</div><p class="alarm-day">明天 · 周三</p><div class="alarm-bottom"><span>留一点时间给早晨</span><span class="mock-switch" aria-hidden="true"></span></div></div>
+            <div class="secondary-alarm"><div><strong>13:20</strong><span>午后小憩 · 每个工作日</span></div><span class="mock-switch" aria-hidden="true"></span></div>
+            <div class="phone-hint"><svg class="icon" aria-hidden="true"><use href="#icon-shield"/></svg>声音去哪里，先确认再播放。</div>
+          </div>
+          <div id="sleep-preview" class="preview-panel" hidden>
+            <div class="sleep-art" data-sound="rain"><div class="sleep-moon" aria-hidden="true"></div><svg class="sound-glyph" aria-hidden="true"><use href="#icon-rain"/></svg><span>让思绪，慢慢安静。</span></div>
+            <div class="sleep-info"><strong id="preview-sound-name">绵密夜雨</strong><span>45 分钟后渐隐结束</span></div>
+            <div class="waveform" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          </div>
+          <div class="phone-nav" aria-hidden="true"><span id="phone-alarm-nav" class="active"><svg class="icon"><use href="#icon-alarm"/></svg>闹钟</span><span id="phone-sleep-nav"><svg class="icon"><use href="#icon-moon"/></svg>助眠</span></div>
+          <div class="phone-home" aria-hidden="true"></div>
+        </div>
+        <div class="floating-note"><span class="shield-badge"><svg class="icon" aria-hidden="true"><use href="#icon-shield"/></svg></span><span>不确定，就保持安静<small>耳机断连时，先静音再停止</small></span></div>
+        <div class="preview-controls" role="group" aria-label="切换应用界面示意" hidden><button type="button" data-preview="alarm" aria-pressed="true">悄然醒来</button><button type="button" data-preview="sleep" aria-pressed="false">安心入睡</button></div>
+        <p class="preview-caption">界面示意 · 非实时设备状态</p>
+      </div>
+    </section>
+
+    <div class="principles wrap" aria-label="产品特点"><p><svg class="icon" aria-hidden="true"><use href="#icon-headphones"/></svg>耳机输出，先验证</p><p><svg class="icon" aria-hidden="true"><use href="#icon-moon"/></svg>8 种离线自然声</p><p><svg class="icon" aria-hidden="true"><use href="#icon-lock"/></svg>作息数据留在本机</p><p><svg class="icon" aria-hidden="true"><use href="#icon-github"/></svg>Apache 2.0 开源</p></div>
+
+    <section id="experience" class="experience wrap section" aria-labelledby="experience-title">
+      <div class="section-heading"><div><p class="eyebrow">FROM DUSK TO DAWN</p><h2 id="experience-title">好好休息，<span>轻轻开始。</span></h2></div><p>睡前与醒来，一处安排。<br>简单的日常，值得被认真对待。</p></div>
+      <div class="feature-grid">
+        <article class="wake-feature"><span class="feature-number">01 / WAKE</span><h3>你的闹钟，<br>懂得留一点安静。</h3><p>一次午休，或每个工作日的早晨。设好时间，让悄醒在响铃前确认声音的去向。</p><div class="schedule-visual" aria-hidden="true"><span>MON&nbsp; TUE&nbsp; WED&nbsp; THU&nbsp; FRI</span><strong>07:30<span>AM</span></strong><div class="schedule-line"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div></div><ul class="feature-list"><li>一次性与每周重复</li><li>6 种闹铃 · 一次稍后提醒</li><li>音量跟随系统媒体设置</li></ul></article>
+        <article class="sleep-feature"><div class="sleep-feature-copy"><span class="feature-number">02 / REST</span><h3>把一小片自然，<br>带进今晚。</h3><p>雨、海浪、林鸟与壁炉。8 种真实环境录音，搭配 5–120 分钟定时与渐隐，让夜晚慢慢安静下来。</p></div><div class="sound-grid" role="group" aria-label="声景氛围示意"><button class="sound-tile rain" type="button" data-sound="rain" aria-pressed="true" disabled><svg class="sound-glyph" aria-hidden="true"><use href="#icon-rain"/></svg><span>绵密夜雨<small>RAIN</small></span><span class="sound-selector" aria-hidden="true"></span></button><button class="sound-tile ocean" type="button" data-sound="ocean" aria-pressed="false" disabled><svg class="sound-glyph" aria-hidden="true"><use href="#icon-ocean"/></svg><span>深夜海浪<small>OCEAN</small></span><span class="sound-selector" aria-hidden="true"></span></button><button class="sound-tile forest" type="button" data-sound="forest" aria-pressed="false" disabled><svg class="sound-glyph" aria-hidden="true"><use href="#icon-forest"/></svg><span>清晨林鸟<small>FOREST</small></span><span class="sound-selector" aria-hidden="true"></span></button><button class="sound-tile fire" type="button" data-sound="fire" aria-pressed="false" disabled><svg class="sound-glyph" aria-hidden="true"><use href="#icon-fire"/></svg><span>轻柔壁炉<small>FIREPLACE</small></span><span class="sound-selector" aria-hidden="true"></span></button></div><p id="sound-description" class="sound-description" aria-live="polite">绵密夜雨 · 像窗外一场绵长的雨。</p><p class="sound-disclaimer">声景氛围示意 · 此页面不播放声音</p></article>
+      </div>
+    </section>
+
+    <section id="safety" class="safety section" aria-labelledby="safety-title"><div class="wrap">
+      <div class="section-heading"><div><p class="eyebrow">QUIET, BY DESIGN</p><h2 id="safety-title">安静不是巧合，<br><span>是每次播放前的选择。</span></h2></div><p>指定耳机，不等于声音真的只在耳机里。<br>悄醒会检查本次播放的实际输出路径。</p></div>
+      <div class="safety-grid"><article><span class="step-number">01</span><svg class="icon" aria-hidden="true"><use href="#icon-headphones"/></svg><h3>先看设备，再决定输出</h3><p>会话开始时没有耳机，允许正常媒体外放。检测到耳机，则进入耳机路由守卫。</p></article><article><span class="step-number">02</span><svg class="icon" aria-hidden="true"><use href="#icon-shield"/></svg><h3>验证通过，才解除静音</h3><p>耳机模式从静音开始。无法确认实际路径，或存在多个候选设备时，保持静音。</p></article><article><span class="step-number">03</span><svg class="icon" aria-hidden="true"><use href="#icon-moon"/></svg><h3>发生变化，先让声音停下</h3><p>耳机断连或路由不确定时，先将播放器增益归零，再停止，并执行你允许的振动或通知兜底。</p></article></div>
+      <div class="safety-footnote"><span class="status-dot"></span><p>耳机会话不会自动降级到扬声器。Android 12–15 使用兼容级验证，Android 16+ 使用全路由强验证；实体机兼容性仍在持续验证。</p><a href="https://github.com/chenzhiyong1994/hush-wake/blob/main/docs/device-test-guide.md">查看验证边界 <span aria-hidden="true">↗</span></a></div>
+    </div></section>
+
+    <section class="privacy wrap" aria-labelledby="privacy-title"><div class="privacy-symbol" aria-hidden="true"><svg class="icon"><use href="#icon-lock"/></svg><span></span><span></span></div><div><p class="eyebrow">PERSONAL STAYS PERSONAL</p><h2 id="privacy-title">你的作息，<span>只属于你。</span></h2><p>无需注册，没有云同步与行为上传。闹钟和偏好保存在手机里，<br class="desktop-break">不持久化耳机原始名称与地址。所有声音随应用离线提供。</p></div><a class="text-link" href="https://github.com/chenzhiyong1994/hush-wake/blob/main/README.zh-CN.md">了解这个开源项目 <svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg></a></section>
+
+    <section class="faq wrap section" aria-labelledby="faq-title"><div><p class="eyebrow">A FEW THINGS TO KNOW</p><h2 id="faq-title">开始之前。</h2><p>把使用方式与边界，<br>提前说清楚。</p></div><div class="faq-list"><details><summary>没有耳机，也能使用吗？<span aria-hidden="true">+</span></summary><p>可以。闹钟或助眠会话开始时，如果没有耳机，应用允许系统媒体外放；检测到耳机后，必须先通过耳机路由守卫。耳机会话发生断连时会先静音再停止，不会自动切换为扬声器继续播放。</p></details><details><summary>哪些 Android 手机可以安装？<span aria-hidden="true">+</span></summary><p>最低需要 Android 12（API 31）。Android 12–15 在本次单路由信息匹配唯一耳机后允许兼容有声；Android 16 及以上可以检查全部实际路由。不同手机和耳机的行为仍需实体机验证，系统版本符合要求并不代表设备组合已经通过验收。</p></details><details><summary>第一次使用，需要做什么？<span aria-hidden="true">+</span></summary><p>安装签名 APK 后，按应用内提示检查精确闹钟、通知、全屏响铃与后台运行相关设置，并确认系统媒体音量。建议先安排一次短时间测试闹钟，检查你的手机和耳机组合。耳机播放会自动检查本次输出，无需额外的人工验证页。</p></details><details><summary>这是稳定版吗？能保证一定叫醒我吗？<span aria-hidden="true">+</span></summary><p>目前是 0.4.8-beta 功能测试版，尚未开放公开稳定版或应用商店发行。实体机零扬声器串音验收仍是发布门禁。关机、无电、应用被强制停止等情况下不能保证唤醒；耳机路径不确定时会保持静音。悄醒也不提供失眠治疗或医疗效果承诺。</p></details></div></section>
+
+    <section id="download" class="download-section wrap" aria-labelledby="download-title"><div class="download-glow" aria-hidden="true"></div><img src="assets/mark.svg" alt="" width="68" height="68" loading="lazy"><p class="eyebrow">REST EASY. WAKE GENTLY.</p><h2 id="download-title">今晚，从悄醒开始。</h2><p>给自己一段安静，也给身边的人多一点体贴。</p><a class="button button-primary" href="https://github.com/chenzhiyong1994/hush-wake/releases/download/v0.4.8-beta/HushWake-0.4.8-beta.apk"><svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>下载 0.4.8-beta APK</a><p class="download-meta">Android 12+ · 正式签名的功能测试版 · 非公开稳定版</p><a class="release-link" href="https://github.com/chenzhiyong1994/hush-wake/releases/tag/v0.4.8-beta">版本说明与 SHA-256 校验文件 <span aria-hidden="true">↗</span></a></section>
+  </main>
+
+  <footer class="site-footer wrap"><a class="brand" href="#"><img src="assets/mark.svg" width="32" height="32" alt=""><span>HushWake <span class="brand-cn">悄醒</span></span></a><p>轻声入睡 · 准时醒来</p><nav aria-label="页脚导航"><a href="https://github.com/chenzhiyong1994/hush-wake">源代码 ↗</a><a href="https://github.com/chenzhiyong1994/hush-wake/issues">反馈</a><a href="https://github.com/chenzhiyong1994/hush-wake/blob/main/LICENSE">Apache 2.0</a><a href="https://github.com/chenzhiyong1994/hush-wake/blob/main/README.md" lang="en">English</a></nav></footer>
+</body>
+</html>

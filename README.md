@@ -22,6 +22,8 @@
 </p>
 
 <p align="center">
+  <a href="https://chenzhiyong1994.github.io/hush-wake/"><strong>Explore the project homepage</strong></a>
+  ·
   <a href="https://github.com/chenzhiyong1994/hush-wake/releases/download/v0.4.8-beta/HushWake-0.4.8-beta.apk"><strong>Download the signed 0.4.8-beta APK</strong></a>
 </p>
 
@@ -126,6 +128,7 @@ Further reading:
 - [Android implementation and verification notes](docs/android-implementation.md)
 - [Real-device test guide](docs/device-test-guide.md)
 - [Audio sources and third-party licenses](docs/audio-credits.md)
+- [Project homepage and GitHub Pages maintenance](docs/project-homepage.md)
 
 ## Contributing
 

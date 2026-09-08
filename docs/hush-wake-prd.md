@@ -924,7 +924,7 @@ stateDiagram-v2
 
 1. 形成通过验证的设备兼容清单，后续在 App 内按机型/系统版本展示经验等级。
 2. 为白噪音素材补充版权来源、循环听感和响度一致性验收表。
-3. MVP 数据稳定后，再讨论品牌命名、公开主页和长期商业化，不提前加入收费架构。
+3. 品牌命名已确定为 HushWake（悄醒），[公开项目主页](https://chenzhiyong1994.github.io/hush-wake/)通过 GitHub Pages 展示当前 beta 功能与边界，并链接已有 GitHub Releases 测试包；这不解除实体机验收门禁。长期商业化仍待讨论，不提前加入收费架构。主页维护见[项目主页与 GitHub Pages](project-homepage.md)。
 
 ---
 
