@@ -80,12 +80,16 @@ struct AlarmListView: View {
                     }
                 }
                 Section {
-                    Button { editing = Alarm() } label: { Label("添加闹钟", systemImage: "plus.circle.fill") }
-                        .accessibilityIdentifier("add-alarm")
                     Button("1 分钟测试") { model.testAlarm() }.accessibilityIdentifier("test-alarm")
                 }
             }
             .navigationTitle("悄醒")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { editing = Alarm() } label: { Image(systemName: "plus") }
+                        .accessibilityLabel("添加闹钟").accessibilityIdentifier("add-alarm")
+                }
+            }
             .sheet(item: $editing) { alarm in AlarmEditor(alarm: alarm) }
         }
     }
@@ -131,7 +135,7 @@ struct AlarmEditor: View {
                 }
             }
             .onAppear { time = Calendar.current.date(bySettingHour: alarm.hour, minute: alarm.minute, second: 0, of: Date()) ?? Date() }
-            .onDisappear { model.stopAudio() }
+            .onDisappear { model.stopPreview() }
         }
     }
 }

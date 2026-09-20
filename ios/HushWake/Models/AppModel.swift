@@ -249,4 +249,5 @@ final class AppModel: ObservableObject {
         stopAudio(); previewing = true
         _ = audio.play(sound: sound, until: Date().addingTimeInterval(10))
     }
+    func stopPreview() { if previewing { stopAudio() } }
 }

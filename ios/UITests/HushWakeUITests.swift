@@ -13,10 +13,10 @@ final class HushWakeUITests: XCTestCase {
         let original = label.value as? String ?? ""
         label.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: original.count) + "UITest Nap")
         app.buttons["save-alarm"].tap()
-        XCTAssertTrue(app.buttons["alarm-UITest Nap"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["UITest Nap"].firstMatch.waitForExistence(timeout: 5))
         app.terminate()
         app.launch()
-        XCTAssertTrue(app.buttons["alarm-UITest Nap"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["UITest Nap"].firstMatch.waitForExistence(timeout: 10))
         attachScreenshot("Alarms")
         app.tabBars.buttons["助眠"].tap()
         XCTAssertTrue(app.staticTexts["绵密夜雨"].waitForExistence(timeout: 5))
@@ -24,6 +24,26 @@ final class HushWakeUITests: XCTestCase {
         app.tabBars.buttons["说明"].tap()
         XCTAssertTrue(app.navigationBars["关于悄醒"].waitForExistence(timeout: 5))
         attachScreenshot("About")
+    }
+
+    @MainActor
+    func testOneMinuteAlarmReachesReminderAndCanSnooze() {
+        let app = XCUIApplication()
+        app.launch()
+        let testButton = app.buttons["test-alarm"]
+        XCTAssertTrue(app.buttons["add-alarm"].waitForExistence(timeout: 10))
+        for _ in 0..<5 {
+            if testButton.isHittable { break }
+            app.swipeUp()
+        }
+        XCTAssertTrue(testButton.isHittable)
+        testButton.tap()
+        XCTAssertFalse(app.buttons["stop-alarm"].exists)
+        XCTAssertTrue(app.buttons["stop-alarm"].waitForExistence(timeout: 75))
+        attachScreenshot("Ringing")
+        app.buttons["稍后 5 分钟"].tap()
+        XCTAssertTrue(app.buttons["add-alarm"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["stop-alarm"].exists)
     }
 
     @MainActor private func attachScreenshot(_ name: String) {

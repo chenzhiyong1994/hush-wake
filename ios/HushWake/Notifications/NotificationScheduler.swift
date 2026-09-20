@@ -31,7 +31,10 @@ final class NotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
         let task = Task { @MainActor [weak self] in
             _ = try? await previous?.value
             guard let self, revisionSnapshot == self.revision else { return }
+            let permitted = await self.authorized()
+            guard revisionSnapshot == self.revision else { return }
             self.center.removeAllPendingNotificationRequests()
+            guard permitted else { return } // Permission warning stays inline; saving alarms remains usable.
             for alarm in alarms where alarm.enabled {
                 for request in Self.requests(for: alarm, now: Date()) {
                     guard revisionSnapshot == self.revision else { return }
