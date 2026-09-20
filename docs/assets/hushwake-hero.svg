@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" role="img" aria-labelledby="title desc">
   <title id="title">HushWake 悄醒</title>
-  <desc id="desc">轻声入睡，准时醒来。一个安全优先的 Android 智能输出闹钟与助眠声应用。</desc>
+  <desc id="desc">轻声入睡，准时醒来。一个安全优先的 Android 与 iOS 闹钟及助眠声应用。</desc>
   <defs>
     <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#070B13"/>
@@ -52,7 +52,7 @@
     <text x="398" y="74" fill="#F5B054" font-family="Microsoft YaHei UI, PingFang SC, sans-serif" font-size="38" font-weight="700">悄醒</text>
     <rect x="2" y="104" width="136" height="4" rx="2" fill="url(#accent)"/>
     <text x="2" y="154" fill="#C4CCDA" font-family="Microsoft YaHei UI, PingFang SC, sans-serif" font-size="27" font-weight="500" letter-spacing="2">轻声入睡 · 准时醒来</text>
-    <text x="2" y="195" fill="#8391A8" font-family="Segoe UI, Microsoft YaHei UI, sans-serif" font-size="18">安全优先的 Android 智能输出闹钟与助眠声</text>
+    <text x="2" y="195" fill="#8391A8" font-family="Segoe UI, Microsoft YaHei UI, sans-serif" font-size="18">安全优先的 Android 与 iOS 闹钟及助眠声</text>
     <g transform="translate(2 218)" font-family="Segoe UI, sans-serif" font-size="12" font-weight="600" letter-spacing="1.4">
       <rect width="132" height="34" rx="17" fill="#152033" stroke="#2B3A52"/>
       <circle cx="18" cy="17" r="4" fill="#55CFC2"/>
@@ -63,9 +63,9 @@
         <text x="31" y="21" fill="#CBBDA9">OFFLINE AUDIO</text>
       </g>
       <g transform="translate(288 0)">
-        <rect width="124" height="34" rx="17" fill="#151C2A" stroke="#2B3A52"/>
+        <rect width="220" height="34" rx="17" fill="#151C2A" stroke="#2B3A52"/>
         <circle cx="18" cy="17" r="4" fill="#FFF3D9"/>
-        <text x="31" y="21" fill="#AEB9CA">ANDROID 12+</text>
+        <text x="31" y="21" fill="#AEB9CA">ANDROID 12+ · iOS 17+</text>
       </g>
     </g>
   </g>

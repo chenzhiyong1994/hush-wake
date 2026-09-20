@@ -63,13 +63,19 @@ def verify():
             assert unquote(url.fragment) in ids, f"Missing fragment: {reference}"
 
     version = re.search(r'versionName\s*=\s*"([^"]+)"', (ROOT / "app/build.gradle.kts").read_text(encoding="utf-8")).group(1)
+    ios_version = re.search(r'MARKETING_VERSION:\s*"([^"]+)"', (ROOT / "ios/project.yml").read_text(encoding="utf-8")).group(1) + "-beta"
+    release_tag = re.search(r'^TAG = "([^"]+)"', (ROOT / "scripts/ios/publish.py").read_text(encoding="utf-8"), re.MULTILINE).group(1)
     apk = f"{REPO}/releases/download/v{version}/HushWake-{version}.apk"
+    ios_downloads = [f"{REPO}/releases/download/{release_tag}/HushWake-iOS-{ios_version}-{suffix}"
+                     for suffix in ("unsigned.ipa", "simulator.zip", "source.zip")]
     for relative in ("site/index.html", "README.md", "README.zh-CN.md"):
         text = (ROOT / relative).read_text(encoding="utf-8")
         assert apk in text, f"Download version out of sync: {relative}"
+        for download in ios_downloads:
+            assert download in text, f"Missing or stale iOS download in {relative}: {download}"
         assert HOME in text, f"Missing homepage link: {relative}"
         versions = set(re.findall(r"\b\d+\.\d+\.\d+-beta\b", text))
-        assert versions == {version}, f"Stale beta metadata in {relative}: {versions}"
+        assert versions == {version, ios_version}, f"Stale beta metadata in {relative}: {versions}"
 
     allowed = {".html", ".css", ".js", ".svg"}
     files = [path for path in SITE.rglob("*") if path.is_file()]
@@ -79,7 +85,7 @@ def verify():
             assert path.suffix in allowed or path.name == ".nojekyll", f"Unexpected artifact: {path}"
     for svg in SITE.rglob("*.svg"):
         ET.parse(svg)
-    print(f"PASS: {len(files)} static files, {len(page.urls)} URLs, project subpath, SVG and {version} metadata")
+    print(f"PASS: {len(files)} static files, {len(page.urls)} URLs, project subpath, SVG, Android {version} and iOS {ios_version} downloads")
 
 
 if __name__ == "__main__":

@@ -6,8 +6,11 @@
 
 <p align="center">
   <a href="https://github.com/chenzhiyong1994/hush-wake/actions/workflows/android-ci.yml"><img src="https://github.com/chenzhiyong1994/hush-wake/actions/workflows/android-ci.yml/badge.svg" alt="Android CI"></a>
-  <img src="https://img.shields.io/badge/status-0.4.8--beta-f6bf6f" alt="0.4.8 beta">
+  <a href="https://github.com/chenzhiyong1994/hush-wake/actions/workflows/ios-ci.yml"><img src="https://github.com/chenzhiyong1994/hush-wake/actions/workflows/ios-ci.yml/badge.svg" alt="iOS CI"></a>
+  <img src="https://img.shields.io/badge/Android_beta-0.4.8-f6bf6f" alt="Android 0.4.8 beta">
+  <img src="https://img.shields.io/badge/iOS_beta-0.1.0-55cfc2" alt="iOS 0.1.0 beta">
   <img src="https://img.shields.io/badge/Android-12%2B-e9ff70?logo=android&logoColor=09110f" alt="Android 12+">
+  <img src="https://img.shields.io/badge/iOS_%2F_iPadOS-17%2B-55cfc2?logo=apple&logoColor=09110f" alt="iOS / iPadOS 17+">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-8fb8a8" alt="Apache License 2.0"></a>
 </p>
 
@@ -24,15 +27,27 @@
 <p align="center">
   <a href="https://chenzhiyong1994.github.io/hush-wake/"><strong>Explore the project homepage</strong></a>
   ·
-  <a href="https://github.com/chenzhiyong1994/hush-wake/releases/download/v0.4.8-beta/HushWake-0.4.8-beta.apk"><strong>Download the signed 0.4.8-beta APK</strong></a>
+  <a href="https://github.com/chenzhiyong1994/hush-wake/releases/download/v0.4.8-beta/HushWake-0.4.8-beta.apk"><strong>Download Android APK</strong></a>
+  ·
+  <a href="https://github.com/chenzhiyong1994/hush-wake/releases/download/v0.4.8-beta/HushWake-iOS-0.1.0-beta-unsigned.ipa"><strong>Download iOS IPA (unsigned)</strong></a>
 </p>
 
 Alarms are very good at waking one person—and often everyone else in the room.
 
-HushWake tackles a deceptively simple problem: **use normal speaker output when no headphones are present, but play through headphones only after the current audio route has been verified as safe.** If the headphones disconnect, the route changes, or Android cannot provide enough evidence, HushWake mutes first and stops instead of silently falling back to a speaker.
+HushWake tackles a deceptively simple problem: **use normal speaker output when no headphones are present, but play through headphones only after the current audio route has been verified as safe.** If the headphones disconnect, the route changes, or the operating system cannot provide enough evidence, HushWake mutes first and stops instead of silently falling back to a speaker.
 
 > [!IMPORTANT]
-> `0.4.8-beta` contains the complete core feature set, but it remains a functional beta rather than a publicly validated stable release. Real-device, zero-speaker-leakage testing is still a release gate; a successful build does not prove that every device is safe.
+> Android `0.4.8-beta` and iOS `0.1.0-beta` are open-source functional betas. Real-device, zero-speaker-leakage testing remains a stable-release gate; passing builds and automated tests do not prove safety on every device.
+
+## Choose your platform
+
+| Platform | Version and requirements | Download and install |
+| --- | --- | --- |
+| Android | `0.4.8-beta` · Android 12+ | [Signed APK](https://github.com/chenzhiyong1994/hush-wake/releases/download/v0.4.8-beta/HushWake-0.4.8-beta.apk), ready to install |
+| iPhone / iPad | `0.1.0-beta` · iOS / iPadOS 17+ | [Unsigned IPA](https://github.com/chenzhiyong1994/hush-wake/releases/download/v0.4.8-beta/HushWake-iOS-0.1.0-beta-unsigned.ipa), requires your own signing; [installation guide](docs/ios-install.md) |
+| iOS development and simulator | macOS / Xcode | [iOS source archive](https://github.com/chenzhiyong1994/hush-wake/releases/download/v0.4.8-beta/HushWake-iOS-0.1.0-beta-source.zip) · [Simulator build](https://github.com/chenzhiyong1994/hush-wake/releases/download/v0.4.8-beta/HushWake-iOS-0.1.0-beta-simulator.zip) |
+
+Both platforms are distributed as open source through GitHub; iOS does not require App Store submission. **Audible iOS alarms require the app to stay in the foreground. Background and lock-screen reminders are silent notifications; sleep audio supports background playback.** Review this limit before installing. Checksums are on the [release download page](https://github.com/chenzhiyong1994/hush-wake/releases/tag/v0.4.8-beta).
 
 ## Why HushWake
 
@@ -61,7 +76,7 @@ The feature table below describes **Android**. The native iOS beta and its platf
 
 App volume follows the system media volume and never raises it automatically. All audio is bundled for offline use, with sources and redistribution terms documented in [Audio sources and licenses](docs/audio-credits.md).
 
-## iOS beta
+## iOS 0.1.0-beta
 
 The repository now includes a native **SwiftUI app for iOS / iPadOS 17+**: one-time and weekly alarms, one snooze, six alarm sounds, eight offline sleep sounds, a sleep timer with fade-out, and local storage. **Audible alarms require the app to remain in the foreground; background reminders are silent system notifications.** Sleep audio supports normal background playback.
 
@@ -80,11 +95,17 @@ See [download and installation instructions](docs/ios-install.md) and [iOS archi
 | Lint and Debug APK build | Local and CI gate |
 | Emulator cold start, primary flow, and background launch | Automated regression scripts available |
 | Wired / A2DP / USB / LE headphone matrix | **Real-device evidence is still being expanded** |
-| Public stable release / app-store distribution | **Not yet available** |
+| Native iOS / iPadOS 17+ app | `0.1.0-beta` published with IPA, simulator and source downloads |
+| iOS core, integration and UI tests | 19 passing tests; Release arm64 build passed |
+| iOS personal signing and zero-speaker-leakage checks | **Real-device validation pending** |
+| Distribution | GitHub Releases; no App Store submission for iOS |
+| Public stable release | **Not yet available; both platforms remain beta** |
 
 HushWake cannot guarantee an alarm when a device is powered off, out of battery, or the app has been force-stopped. It does not claim to treat insomnia or provide any medical benefit. See the [PRD](docs/hush-wake-prd.md) and [real-device test guide](docs/device-test-guide.md) for the complete boundaries.
 
-## Quick start
+## Build from source
+
+### Android
 
 Requirements:
 
@@ -122,6 +143,20 @@ Alarm-audio continuity checks require `ffmpeg` and `ffprobe`:
 
 Emulator results cannot prove zero speaker leakage on real headphones. Claims about private headphone playback must be validated with the [real-device test guide](docs/device-test-guide.md).
 
+### iOS / iPadOS
+
+Requires macOS, Xcode 16.4, XcodeGen and FFmpeg. From the repository root:
+
+```bash
+brew install xcodegen ffmpeg
+swift test --package-path ios/Core
+python3 scripts/ios/prepare_resources.py
+(cd ios && xcodegen generate)
+open ios/HushWake.xcodeproj
+```
+
+Select your own signing Team and device in Xcode to run the app. See the [iOS installation guide](docs/ios-install.md) for the full steps.
+
 ## Code map
 
 ```text
@@ -134,10 +169,21 @@ app/src/main/java/com/hushwake/app/
 └── ui/          Lightweight native Android UI
 ```
 
+```text
+ios/
+├── Core/        Scheduling, sleep timers and audio-route state machine
+├── HushWake/    SwiftUI, guarded audio, local data and silent notifications
+├── Tests/       iOS integration tests
+├── UITests/     Alarm creation, screen access and snooze regression
+└── project.yml  XcodeGen project definition
+```
+
 Further reading:
 
 - [Product requirements and safety constraints](docs/hush-wake-prd.md)
 - [Android implementation and verification notes](docs/android-implementation.md)
+- [iOS implementation and verification notes](docs/ios-implementation.md)
+- [iOS downloads and installation](docs/ios-install.md)
 - [Real-device test guide](docs/device-test-guide.md)
 - [Audio sources and third-party licenses](docs/audio-credits.md)
 - [Project homepage and GitHub Pages maintenance](docs/project-homepage.md)

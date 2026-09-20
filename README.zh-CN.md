@@ -6,8 +6,11 @@
 
 <p align="center">
   <a href="https://github.com/chenzhiyong1994/hush-wake/actions/workflows/android-ci.yml"><img src="https://github.com/chenzhiyong1994/hush-wake/actions/workflows/android-ci.yml/badge.svg" alt="Android CI"></a>
-  <img src="https://img.shields.io/badge/status-0.4.8--beta-f6bf6f" alt="0.4.8 beta">
+  <a href="https://github.com/chenzhiyong1994/hush-wake/actions/workflows/ios-ci.yml"><img src="https://github.com/chenzhiyong1994/hush-wake/actions/workflows/ios-ci.yml/badge.svg" alt="iOS CI"></a>
+  <img src="https://img.shields.io/badge/Android_beta-0.4.8-f6bf6f" alt="Android 0.4.8 beta">
+  <img src="https://img.shields.io/badge/iOS_beta-0.1.0-55cfc2" alt="iOS 0.1.0 beta">
   <img src="https://img.shields.io/badge/Android-12%2B-e9ff70?logo=android&logoColor=09110f" alt="Android 12+">
+  <img src="https://img.shields.io/badge/iOS_%2F_iPadOS-17%2B-55cfc2?logo=apple&logoColor=09110f" alt="iOS / iPadOS 17+">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-8fb8a8" alt="Apache License 2.0"></a>
 </p>
 
@@ -24,7 +27,9 @@
 <p align="center">
   <a href="https://chenzhiyong1994.github.io/hush-wake/"><strong>访问项目主页</strong></a>
   ·
-  <a href="https://github.com/chenzhiyong1994/hush-wake/releases/download/v0.4.8-beta/HushWake-0.4.8-beta.apk"><strong>下载正式签名的 0.4.8-beta APK</strong></a>
+  <a href="https://github.com/chenzhiyong1994/hush-wake/releases/download/v0.4.8-beta/HushWake-0.4.8-beta.apk"><strong>下载 Android APK</strong></a>
+  ·
+  <a href="https://github.com/chenzhiyong1994/hush-wake/releases/download/v0.4.8-beta/HushWake-iOS-0.1.0-beta-unsigned.ipa"><strong>下载 iOS IPA（未签名）</strong></a>
 </p>
 
 闹钟很擅长叫醒一个人，却也常常顺便叫醒一屋子人。
@@ -32,7 +37,17 @@
 HushWake 想解决的是一个看似简单、实际很容易出错的问题：**没有耳机时正常外放；检测到耳机时，只在确认当前实际音频路径安全后播放。** 如果耳机断开、路由改变或系统给出的证据不足，应用会先静音再停止，而不是为了“继续有声”悄悄切回扬声器。
 
 > [!IMPORTANT]
-> `0.4.8-beta` 已具备完整核心功能，但仍是公开源码的功能测试版，不是公开稳定发行版。真实耳机的零扬声器串音验证仍是发布门禁；源码可构建不等于所有设备都已安全通过。
+> Android `0.4.8-beta` 与 iOS `0.1.0-beta` 均为开源功能测试版。真实耳机的零扬声器串音验证仍是稳定版门禁；构建和自动测试通过不等于所有设备已完成验收。
+
+## 选择你的平台
+
+| 平台 | 当前版本与要求 | 下载与安装 |
+| --- | --- | --- |
+| Android | `0.4.8-beta` · Android 12+ | [签名 APK](https://github.com/chenzhiyong1994/hush-wake/releases/download/v0.4.8-beta/HushWake-0.4.8-beta.apk)，下载后安装 |
+| iPhone / iPad | `0.1.0-beta` · iOS / iPadOS 17+ | [未签名 IPA](https://github.com/chenzhiyong1994/hush-wake/releases/download/v0.4.8-beta/HushWake-iOS-0.1.0-beta-unsigned.ipa)，需自行签名；[安装说明](docs/ios-install.md) |
+| iOS 开发与模拟器 | macOS / Xcode | [iOS 源码包](https://github.com/chenzhiyong1994/hush-wake/releases/download/v0.4.8-beta/HushWake-iOS-0.1.0-beta-source.zip) · [模拟器包](https://github.com/chenzhiyong1994/hush-wake/releases/download/v0.4.8-beta/HushWake-iOS-0.1.0-beta-simulator.zip) |
+
+两个平台均通过 GitHub 开源分发；iOS 不需要上架 App Store。**iOS 有声闹钟需保持应用前台，后台和锁屏仅无声通知；助眠声可后台播放。** 下载前请了解这一平台边界。校验文件见 [Release 下载页](https://github.com/chenzhiyong1994/hush-wake/releases/tag/v0.4.8-beta)。
 
 ## 为什么做 HushWake
 
@@ -61,7 +76,7 @@ HushWake 因此选择一条更克制的路线：
 
 应用音量完全跟随系统媒体音量，不会擅自调高系统音量。所有音频离线打包，来源和再分发许可可在[音频来源与许可](docs/audio-credits.md)中逐项审查。
 
-## iOS beta
+## iOS 0.1.0-beta
 
 已新增 **iOS / iPadOS 17+ 原生 SwiftUI 应用**：单次与周重复闹钟、一次稍后提醒、6 种闹铃、8 种离线助眠声、睡眠定时与渐隐、本地保存。**有声闹钟需要应用保持前台，后台或锁屏仅发送无声系统通知。** 助眠声支持正常后台音频播放。
 
@@ -80,11 +95,17 @@ HushWake 因此选择一条更克制的路线：
 | Lint 与 Debug APK 构建 | 本地与 CI 门禁 |
 | 模拟器冷启动、主流程与后台拉起 | 已有自动回归脚本 |
 | 有线 / A2DP / USB / LE 耳机矩阵 | **待持续补充实体机证据** |
-| 公开稳定版 / 应用商店发行 | **尚未开放** |
+| iOS / iPadOS 17+ 原生应用 | 已发布 `0.1.0-beta`，IPA / 模拟器包 / 源码可下载 |
+| iOS 核心、集成与界面测试 | 19 项通过；Release arm64 构建通过 |
+| iOS 个人签名安装与耳机零串音 | **待实体机验收** |
+| 分发渠道 | GitHub Releases；iOS 不涉及 App Store 上架 |
+| 公开稳定版 | **尚未发布；两个平台均为 beta** |
 
 HushWake 不能在关机、无电、被系统强制停止等条件下保证唤醒，也不提供失眠治疗或其他医疗效果。完整边界见 [PRD](docs/hush-wake-prd.md) 与[实体机测试指南](docs/device-test-guide.md)。
 
-## 快速开始
+## 从源码构建
+
+### Android
 
 需要：
 
@@ -122,6 +143,20 @@ app/build/outputs/apk/debug/app-debug.apk
 
 模拟器回归不能证明真实耳机没有扬声器泄漏；相关结论必须按[实体机测试指南](docs/device-test-guide.md)验证。
 
+### iOS / iPadOS
+
+需要 macOS、Xcode 16.4、XcodeGen 和 FFmpeg。在仓库根目录运行：
+
+```bash
+brew install xcodegen ffmpeg
+swift test --package-path ios/Core
+python3 scripts/ios/prepare_resources.py
+(cd ios && xcodegen generate)
+open ios/HushWake.xcodeproj
+```
+
+在 Xcode 中选择自己的签名 Team 和设备运行。完整步骤见 [iOS 下载与安装](docs/ios-install.md)。
+
 ## 代码地图
 
 ```text
@@ -134,10 +169,21 @@ app/src/main/java/com/hushwake/app/
 └── ui/          轻量原生 Android UI
 ```
 
+```text
+ios/
+├── Core/        调度、定时与音频路由状态机
+├── HushWake/    SwiftUI、音频守卫、本地数据与无声通知
+├── Tests/       iOS 集成测试
+├── UITests/     创建闹钟、页面访问与稍后提醒回归
+└── project.yml  XcodeGen 工程定义
+```
+
 进一步阅读：
 
 - [产品需求文档与安全约束](docs/hush-wake-prd.md)
 - [Android 实现与验证说明](docs/android-implementation.md)
+- [iOS 实现与验证说明](docs/ios-implementation.md)
+- [iOS 下载与安装](docs/ios-install.md)
 - [实体机测试指南](docs/device-test-guide.md)
 - [音频来源与第三方许可](docs/audio-credits.md)
 - [项目主页与 GitHub Pages 维护](docs/project-homepage.md)

@@ -4,11 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0b101a">
-  <meta name="description" content="HushWake 悄醒，一款安全优先的 Android 闹钟与助眠声应用。无耳机时正常外放，耳机模式验证后发声，异常时先静音。离线使用，数据留在本机。">
+  <meta name="description" content="HushWake 悄醒，安全优先的 Android 与 iOS 闹钟及助眠声应用。GitHub 提供 APK、未签名 IPA 和源码下载。iOS 有声闹钟需保持前台，助眠声支持后台播放。">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="zh_CN">
   <meta property="og:title" content="HushWake 悄醒 · 把清晨，留给自己。">
-  <meta property="og:description" content="从睡前的一场雨，到清晨的一声轻唤。安全优先的 Android 智能输出闹钟与助眠声，现已开放 beta 体验。">
+  <meta property="og:description" content="从睡前的一场雨，到清晨的一声轻唤。Android 与 iOS 原生开源应用，现已提供 beta 下载。iOS 需自行签名，有声闹钟需保持前台。">
   <meta property="og:url" content="https://chenzhiyong1994.github.io/hush-wake/">
   <link rel="canonical" href="https://chenzhiyong1994.github.io/hush-wake/">
   <link rel="icon" href="assets/mark.svg" type="image/svg+xml">
@@ -45,16 +45,16 @@
   <main id="main">
     <section class="hero wrap" aria-labelledby="hero-title">
       <div class="hero-copy">
-        <a class="release-pill" href="#download"><span class="status-dot"></span> 0.4.8-beta 现已开放体验 <span aria-hidden="true">↗</span></a>
+        <a class="release-pill" href="#download"><span class="status-dot"></span> Android 与 iOS beta 现已开放体验 <span aria-hidden="true">↗</span></a>
         <p class="eyebrow hero-eyebrow">A QUIETER WAY TO WAKE</p>
         <h1 id="hero-title">把清晨，<br><span>留给自己。</span></h1>
         <p class="hero-description">从睡前的一场雨，到清晨的一声轻唤。<br>悄醒，让休息与醒来，多一点自己的空间。</p>
         <div class="hero-actions">
           <a class="button button-primary" href="https://github.com/chenzhiyong1994/hush-wake/releases/download/v0.4.8-beta/HushWake-0.4.8-beta.apk"><svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>下载 Android 测试版</a>
-          <a class="text-link" href="#experience">认识悄醒 <svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg></a>
+          <a class="button button-secondary" href="#ios-download"><svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>获取 iOS 测试版</a>
         </div>
-        <p class="hero-meta">Android 12+ <span>·</span> 无需账号 <span>·</span> 离线使用</p>
-        <p class="beta-note">当前为功能测试版，耳机兼容性仍在实体机验证中。<br><a href="https://github.com/chenzhiyong1994/hush-wake/blob/main/docs/ios-install.md">iOS 开源 beta：下载与个人签名安装 ↗</a><br>iOS 有声闹钟需保持前台，后台仅无声通知。</p>
+        <p class="hero-meta">Android 12+ <span>·</span> iOS / iPadOS 17+ <span>·</span> 离线使用</p>
+        <p class="beta-note">两个平台均为 beta，耳机兼容性仍在实体机验证中。<br>iOS 安装需自行签名；有声闹钟需保持前台，后台和锁屏仅无声通知。</p>
       </div>
 
       <div class="hero-visual">
@@ -97,14 +97,44 @@
     <section id="safety" class="safety section" aria-labelledby="safety-title"><div class="wrap">
       <div class="section-heading"><div><p class="eyebrow">QUIET, BY DESIGN</p><h2 id="safety-title">安静不是巧合，<br><span>是每次播放前的选择。</span></h2></div><p>指定耳机，不等于声音真的只在耳机里。<br>悄醒会检查本次播放的实际输出路径。</p></div>
       <div class="safety-grid"><article><span class="step-number">01</span><svg class="icon" aria-hidden="true"><use href="#icon-headphones"/></svg><h3>先看设备，再决定输出</h3><p>会话开始时没有耳机，允许正常媒体外放。检测到耳机，则进入耳机路由守卫。</p></article><article><span class="step-number">02</span><svg class="icon" aria-hidden="true"><use href="#icon-shield"/></svg><h3>验证通过，才解除静音</h3><p>耳机模式从静音开始。无法确认实际路径，或存在多个候选设备时，保持静音。</p></article><article><span class="step-number">03</span><svg class="icon" aria-hidden="true"><use href="#icon-moon"/></svg><h3>发生变化，先让声音停下</h3><p>耳机断连或路由不确定时，先将播放器增益归零，再停止，并执行你允许的振动或通知兜底。</p></article></div>
-      <div class="safety-footnote"><span class="status-dot"></span><p>耳机会话不会自动降级到扬声器。Android 12–15 使用兼容级验证，Android 16+ 使用全路由强验证；实体机兼容性仍在持续验证。</p><a href="https://github.com/chenzhiyong1994/hush-wake/blob/main/docs/device-test-guide.md">查看验证边界 <span aria-hidden="true">↗</span></a></div>
+      <div class="safety-footnote"><span class="status-dot"></span><p>耳机会话不会自动降级到扬声器。Android 12–15 使用兼容级验证，Android 16+ 使用全路由强验证。iOS 仅允许内置扬声器或明确识别的唯一有线耳机，蓝牙、USB 和未知输出保持阻断。实体机兼容性仍在持续验证。</p><a href="https://github.com/chenzhiyong1994/hush-wake/blob/main/docs/device-test-guide.md">Android 验证边界 <span aria-hidden="true">↗</span></a></div>
     </div></section>
 
     <section class="privacy wrap" aria-labelledby="privacy-title"><div class="privacy-symbol" aria-hidden="true"><svg class="icon"><use href="#icon-lock"/></svg><span></span><span></span></div><div><p class="eyebrow">PERSONAL STAYS PERSONAL</p><h2 id="privacy-title">你的作息，<span>只属于你。</span></h2><p>无需注册，没有云同步与行为上传。闹钟和偏好保存在手机里，<br class="desktop-break">不持久化耳机原始名称与地址。所有声音随应用离线提供。</p></div><a class="text-link" href="https://github.com/chenzhiyong1994/hush-wake/blob/main/README.zh-CN.md">了解这个开源项目 <svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg></a></section>
 
-    <section class="faq wrap section" aria-labelledby="faq-title"><div><p class="eyebrow">A FEW THINGS TO KNOW</p><h2 id="faq-title">开始之前。</h2><p>把使用方式与边界，<br>提前说清楚。</p></div><div class="faq-list"><details><summary>没有耳机，也能使用吗？<span aria-hidden="true">+</span></summary><p>可以。闹钟或助眠会话开始时，如果没有耳机，应用允许系统媒体外放；检测到耳机后，必须先通过耳机路由守卫。耳机会话发生断连时会先静音再停止，不会自动切换为扬声器继续播放。</p></details><details><summary>哪些 Android 手机可以安装？<span aria-hidden="true">+</span></summary><p>最低需要 Android 12（API 31）。Android 12–15 在本次单路由信息匹配唯一耳机后允许兼容有声；Android 16 及以上可以检查全部实际路由。不同手机和耳机的行为仍需实体机验证，系统版本符合要求并不代表设备组合已经通过验收。</p></details><details><summary>第一次使用，需要做什么？<span aria-hidden="true">+</span></summary><p>安装签名 APK 后，按应用内提示检查精确闹钟、通知、全屏响铃与后台运行相关设置，并确认系统媒体音量。建议先安排一次短时间测试闹钟，检查你的手机和耳机组合。耳机播放会自动检查本次输出，无需额外的人工验证页。</p></details><details><summary>这是稳定版吗？能保证一定叫醒我吗？<span aria-hidden="true">+</span></summary><p>目前是 0.4.8-beta 功能测试版，尚未开放公开稳定版或应用商店发行。实体机零扬声器串音验收仍是发布门禁。关机、无电、应用被强制停止等情况下不能保证唤醒；耳机路径不确定时会保持静音。悄醒也不提供失眠治疗或医疗效果承诺。</p></details></div></section>
+    <section class="faq wrap section" aria-labelledby="faq-title"><div><p class="eyebrow">A FEW THINGS TO KNOW</p><h2 id="faq-title">开始之前。</h2><p>把使用方式与边界，<br>提前说清楚。</p></div><div class="faq-list"><details><summary>没有耳机，也能使用吗？<span aria-hidden="true">+</span></summary><p>可以。闹钟或助眠会话开始时，如果没有耳机，应用允许系统媒体外放；检测到耳机后，必须先通过耳机路由守卫。耳机会话发生断连时会先静音再停止，不会自动切换为扬声器继续播放。</p></details><details><summary>哪些 Android 手机可以安装？<span aria-hidden="true">+</span></summary><p>最低需要 Android 12（API 31）。Android 12–15 在本次单路由信息匹配唯一耳机后允许兼容有声；Android 16 及以上可以检查全部实际路由。不同手机和耳机的行为仍需实体机验证，系统版本符合要求并不代表设备组合已经通过验收。</p></details><details><summary>Android 第一次使用，需要做什么？<span aria-hidden="true">+</span></summary><p>安装签名 APK 后，按应用内提示检查精确闹钟、通知、全屏响铃与后台运行相关设置，并确认系统媒体音量。建议先安排一次短时间测试闹钟，检查你的手机和耳机组合。耳机播放会自动检查本次输出，无需额外的人工验证页。</p></details><details><summary>iPhone 和 iPad 如何安装？<span aria-hidden="true">+</span></summary><p>需要 iOS / iPadOS 17 或以上。GitHub 提供的 IPA 未签名，不能直接点开安装；可以用自己的签名身份重新签名，或在 Mac 上用 Xcode 从源码构建到设备。不需要通过 App Store 或 TestFlight。<a href="https://github.com/chenzhiyong1994/hush-wake/blob/main/docs/ios-install.md">查看 iOS 安装步骤 ↗</a></p></details><details><summary>iOS 锁屏后能响铃吗？蓝牙耳机能用吗？<span aria-hidden="true">+</span></summary><p>本版有声闹钟需要应用保持前台；锁屏、后台或应用终止后，只发送已登记的无声系统通知，不能保证叫醒。助眠声支持正常后台播放。iOS 仅允许内置扬声器或系统明确识别的唯一有线耳机；蓝牙、USB、AirPlay、车载与未知输出保持阻断。<a href="https://github.com/chenzhiyong1994/hush-wake/blob/main/docs/ios-implementation.md">查看 iOS 能力与验收边界 ↗</a></p></details><details><summary>这是稳定版吗？能保证一定叫醒我吗？<span aria-hidden="true">+</span></summary><p>Android 0.4.8-beta 与 iOS 0.1.0-beta 均为开源功能测试版，通过 GitHub 分发，尚未发布稳定版；iOS 不涉及 App Store 上架。实体机零扬声器串音验收仍是发布门禁。关机、无电、应用被强制停止等情况下不能保证唤醒；耳机路径不确定时会保持静音。悄醒也不提供失眠治疗或医疗效果承诺。</p></details></div></section>
 
-    <section id="download" class="download-section wrap" aria-labelledby="download-title"><div class="download-glow" aria-hidden="true"></div><img src="assets/mark.svg" alt="" width="68" height="68" loading="lazy"><p class="eyebrow">REST EASY. WAKE GENTLY.</p><h2 id="download-title">今晚，从悄醒开始。</h2><p>给自己一段安静，也给身边的人多一点体贴。</p><a class="button button-primary" href="https://github.com/chenzhiyong1994/hush-wake/releases/download/v0.4.8-beta/HushWake-0.4.8-beta.apk"><svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>下载 0.4.8-beta APK</a><p class="download-meta">Android 12+ · 正式签名的功能测试版 · 非公开稳定版</p><a class="release-link" href="https://github.com/chenzhiyong1994/hush-wake/releases/tag/v0.4.8-beta">版本说明与 SHA-256 校验文件 <span aria-hidden="true">↗</span></a></section>
+    <section id="download" class="download-section wrap" aria-labelledby="download-title">
+      <div class="download-glow" aria-hidden="true"></div>
+      <img src="assets/mark.svg" alt="" width="68" height="68" loading="lazy">
+      <p class="eyebrow">REST EASY. WAKE GENTLY.</p>
+      <h2 id="download-title">在你的设备上，开始悄醒。</h2>
+      <p>Android 与 iOS 原生应用 · GitHub 开源下载 · 无需账号</p>
+      <div class="platform-downloads">
+        <article class="platform-download" aria-labelledby="android-download-title">
+          <p class="eyebrow">ANDROID 12+</p>
+          <h3 id="android-download-title">Android <span>0.4.8-beta</span></h3>
+          <p>单次与周重复闹钟、后台调度、耳机路由守卫，以及 8 种离线助眠声。</p>
+          <a class="button button-primary" href="https://github.com/chenzhiyong1994/hush-wake/releases/download/v0.4.8-beta/HushWake-0.4.8-beta.apk"><svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>下载签名 APK</a>
+          <p class="download-meta">下载后安装，按提示完成通知与后台权限设置。</p>
+          <a class="release-link" href="https://github.com/chenzhiyong1994/hush-wake/blob/main/README.zh-CN.md">Android 使用与构建说明 ↗</a>
+        </article>
+        <article id="ios-download" class="platform-download" aria-labelledby="ios-download-title">
+          <p class="eyebrow">iOS / iPadOS 17+</p>
+          <h3 id="ios-download-title">iPhone / iPad <span>0.1.0-beta</span></h3>
+          <p>原生 SwiftUI 闹钟与助眠声。有声闹钟需保持前台，后台和锁屏仅无声通知；助眠声支持后台播放。</p>
+          <a class="button button-secondary" href="https://github.com/chenzhiyong1994/hush-wake/releases/download/v0.4.8-beta/HushWake-iOS-0.1.0-beta-unsigned.ipa"><svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>下载未签名 IPA</a>
+          <p class="download-meta">需自行签名安装，或使用 Xcode 从源码运行。</p>
+          <div class="download-links">
+            <a href="https://github.com/chenzhiyong1994/hush-wake/blob/main/docs/ios-install.md">安装步骤 ↗</a>
+            <a href="https://github.com/chenzhiyong1994/hush-wake/releases/download/v0.4.8-beta/HushWake-iOS-0.1.0-beta-simulator.zip">模拟器包</a>
+            <a href="https://github.com/chenzhiyong1994/hush-wake/releases/download/v0.4.8-beta/HushWake-iOS-0.1.0-beta-source.zip">iOS 源码包</a>
+          </div>
+        </article>
+      </div>
+      <p class="download-meta">两个平台均为功能测试版，实体机耳机安全验收仍待完成。iOS 不涉及 App Store 上架。</p>
+      <a class="release-link" href="https://github.com/chenzhiyong1994/hush-wake/releases/tag/v0.4.8-beta">版本说明与 SHA-256 校验文件 <span aria-hidden="true">↗</span></a>
+    </section>
   </main>
 
   <footer class="site-footer wrap"><a class="brand" href="#"><img src="assets/mark.svg" width="32" height="32" alt=""><span>HushWake <span class="brand-cn">悄醒</span></span></a><p>轻声入睡 · 准时醒来</p><nav aria-label="页脚导航"><a href="https://github.com/chenzhiyong1994/hush-wake">源代码 ↗</a><a href="https://github.com/chenzhiyong1994/hush-wake/issues">反馈</a><a href="https://github.com/chenzhiyong1994/hush-wake/blob/main/LICENSE">Apache 2.0</a><a href="https://github.com/chenzhiyong1994/hush-wake/blob/main/README.md" lang="en">English</a></nav></footer>

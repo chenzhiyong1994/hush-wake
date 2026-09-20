@@ -20,7 +20,7 @@ node --check site/app.js
 git diff --check
 ```
 
-静态检查覆盖本地资源、锚点、项目子路径、SVG、发布文件范围，以及主页与中英文 README 的 APK 版本一致性。网络下载地址与最终线上页面还需在发布时核实。这里只改主页时，不需要重新构建 Android 应用；修改应用代码时仍遵循项目原有门禁。
+静态检查覆盖本地资源、锚点、项目子路径、SVG、发布文件范围，以及主页与中英文 README 的 Android APK、iOS IPA / 模拟器 / 源码下载地址和版本一致性。平台版本分别从 Android 和 iOS 工程读取，iOS 附件所在标签从发布脚本读取。网络下载地址与最终线上页面还需在发布时核实。这里只改主页时，不需要重新构建应用；修改应用代码时仍遵循项目原有门禁。
 
 ## 部署与维护
 
@@ -28,6 +28,8 @@ GitHub 仓库 Settings → Pages 的 Source 使用 **GitHub Actions**。`.github
 
 Actions 使用固定 commit，部署权限仅授予发布 job，目标环境为 `github-pages`。发布方式依据 [GitHub Pages 自定义工作流文档](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)。
 
-发布新 APK 后，同步 `site/index.html`、`README.md`、`README.zh-CN.md` 的版本、下载链接与测试版说明，并运行检查。新版本的 APK 与校验文件必须已经出现在对应 GitHub Release 中。主页不自动选取“latest”，避免把预发布版本与稳定版混淆。修改兼容等级、隐私承诺或功能说明时，先核对当前 PRD 和实现证据。
+发布 Android 或 iOS 新版本后，同步 `site/index.html`、`README.md`、`README.zh-CN.md` 的平台版本、下载链接与测试版说明，并运行检查；同时核对 README 横幅及仓库 About 的平台描述。安装包、模拟器包、源码与校验文件必须已经出现在对应 GitHub Release 中。主页不自动选取“latest”，避免把预发布版本与稳定版混淆。修改兼容等级、隐私承诺或功能说明时，先核对当前 PRD 和实现证据。
 
-仓库 About 的 Website 与两份 README 均指向上述主页。APK 仍由 GitHub Releases 分发，主页发布不改变 Android beta 的实体机验收门禁。
+iOS 下载入口必须明确 IPA 未签名、需个人签名安装，并在下载前说明有声闹钟仅前台、后台及锁屏仅无声通知、助眠声可后台播放。iOS 不涉及 App Store 上架，分发和实体机验收状态应分别说明。首版 iOS 附件复用已有 Android Release，下载源码应指向专用 iOS 源码 ZIP，不能指向不含 iOS 工程的旧标签自动归档。
+
+仓库 About 的 Website 与两份 README 均指向上述主页。Android APK 与 iOS 下载包均由 GitHub Releases 分发，主页发布不改变两个平台 beta 的实体机验收门禁。
