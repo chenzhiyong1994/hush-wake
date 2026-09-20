@@ -24,6 +24,20 @@ final class NotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
         return settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional
     }
 
+    static func routeWarning() -> UNNotificationRequest {
+        let content = UNMutableNotificationContent()
+        content.title = "悄醒 · 输出已阻断"
+        content.body = "音频输出发生变化或无法确认，应用已静音并停止。请确认输出后手动重新播放。"
+        content.sound = nil
+        return UNNotificationRequest(identifier: "hushwake-output-blocked", content: content, trigger: nil)
+    }
+
+    func notifyRouteBlocked() async {
+        guard await authorized() else { return }
+        // A denied/failed fallback never changes the already-muted player state.
+        try? await center.add(Self.routeWarning())
+    }
+
     func replace(alarms: [Alarm]) async throws {
         revision += 1
         let revisionSnapshot = revision

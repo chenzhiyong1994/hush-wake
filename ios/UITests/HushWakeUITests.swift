@@ -19,7 +19,15 @@ final class HushWakeUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["UITest Nap"].firstMatch.waitForExistence(timeout: 10))
         attachScreenshot("Alarms")
         app.tabBars.buttons["助眠"].tap()
-        XCTAssertTrue(app.staticTexts["绵密夜雨"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["慢慢安静"].waitForExistence(timeout: 5))
+        let rain = app.buttons["sleep-sound-sleep_rain"]
+        for _ in 0..<4 {
+            if rain.isHittable { break }
+            app.swipeUp()
+        }
+        XCTAssertTrue(rain.isHittable)
+        rain.tap()
+        XCTAssertEqual(rain.value as? String, "已选择")
         attachScreenshot("Sleep")
         app.tabBars.buttons["说明"].tap()
         XCTAssertTrue(app.navigationBars["关于悄醒"].waitForExistence(timeout: 5))

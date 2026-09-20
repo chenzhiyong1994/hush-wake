@@ -16,6 +16,8 @@ final class IntegrationTests: XCTestCase {
         XCTAssertTrue(requests.allSatisfy { $0.content.sound == nil })
         XCTAssertFalse(requests.contains { $0.content.body.contains(alarm.label) })
         XCTAssertEqual(Set(requests.map(\.identifier)).count, 8)
+        XCTAssertNil(NotificationScheduler.routeWarning().content.sound)
+        XCTAssertTrue(NotificationScheduler.routeWarning().content.userInfo.isEmpty)
     }
     func testEightDailyAlarmsWithSnoozesFitTheNotificationBudget() {
         let now = Date()

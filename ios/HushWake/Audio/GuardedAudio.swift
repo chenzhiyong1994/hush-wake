@@ -21,11 +21,11 @@ final class GuardedAudio: @unchecked Sendable {
     private var fade: TimeInterval = 0
     private var generation = 0
     private var eventRevision = 0
-    var onChange: (@Sendable (Int, String, Bool) -> Void)?
+    var onChange: (@Sendable (Int, String, Bool, Bool) -> Void)?
 
-    private func reportLocked(_ message: String, _ playing: Bool) {
+    private func reportLocked(_ message: String, _ playing: Bool, blocked: Bool = false) {
         eventRevision += 1
-        onChange?(eventRevision, message, playing)
+        onChange?(eventRevision, message, playing, blocked)
     }
 
     init() {
@@ -123,7 +123,7 @@ final class GuardedAudio: @unchecked Sendable {
         timer?.cancel()
         timer = nil
         deadline = nil
-        reportLocked(message, false)
+        reportLocked(message, false, blocked: true)
     }
 
     private func invalidate() {

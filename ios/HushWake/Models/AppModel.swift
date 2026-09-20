@@ -32,13 +32,19 @@ final class AppModel: ObservableObject {
         catch { self.error = "本地数据无法读取，已保留原文件并停止保存。请检查设备空间或重新打开应用。" }
         reconcileExpired()
         rebuild()
-        audio.onChange = { [weak self] revision, message, playing in
+        audio.onChange = { [weak self] revision, message, playing, blocked in
             Task { @MainActor [weak self] in
                 guard let self, revision > self.audioRevision else { return }
                 self.audioRevision = revision
                 self.audioStatus = message
                 self.isPlaying = playing
                 if !playing { MPNowPlayingInfoCenter.default().nowPlayingInfo = nil }
+                if blocked {
+                    if self.foreground && self.saved.haptics {
+                        UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                    }
+                    await self.notifications.notifyRouteBlocked()
+                }
             }
         }
         notifications.onOpen = { [weak self] id in self?.openReminder(id) }

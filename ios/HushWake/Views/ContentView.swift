@@ -165,6 +165,9 @@ struct SleepView: View {
                                 if model.selectedSleep == sound.id { Image(systemName: "checkmark.circle.fill") }
                             }.padding(.vertical, 5)
                         }.foregroundStyle(model.selectedSleep == sound.id ? .mint : .primary)
+                            .accessibilityLabel(sound.name)
+                            .accessibilityValue(model.selectedSleep == sound.id ? "已选择" : "")
+                            .accessibilityIdentifier("sleep-sound-\(sound.id)")
                     }
                 }
                 Section("睡眠定时") {
@@ -220,7 +223,7 @@ struct SettingsView: View {
                 }
                 Section("提醒偏好") {
                     Toggle("前台提醒时轻触反馈", isOn: Binding(get: { model.saved.haptics }, set: { model.preferences(haptics: $0) }))
-                    Text("默认关闭；开启后仅在前台触发一次，不保证持续振动。后台通知不请求声音。")
+                    Text("默认关闭；开启后在前台提醒或输出阻断时触发一次，不保证持续振动。允许通知后也可收到无声的输出阻断提示。")
                     Button("允许无声通知") { model.requestNotifications() }
                     Button("打开系统设置") { openSettings() }
                 }
