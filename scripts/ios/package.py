@@ -3,6 +3,7 @@ from pathlib import Path
 import argparse
 import hashlib
 import plistlib
+import re
 import shutil
 import subprocess
 import zipfile
@@ -28,6 +29,10 @@ def main():
         info = plistlib.load(file)
     assert info["CFBundleIdentifier"] == "com.hushwake.app.ios"
     assert info["CFBundleSupportedPlatforms"] == ["iPhoneOS"], "A simulator app cannot be shipped as the device IPA"
+    expected_version = re.search(r'MARKETING_VERSION:\s*"([^"]+)"', (ROOT / "ios/project.yml").read_text()).group(1)
+    assert info["CFBundleShortVersionString"] == expected_version, "Xcode bundle version differs from the project version"
+    assert "audio" in info.get("UIBackgroundModes", []), "Background sleep playback requires the audio mode"
+    assert info.get("CFBundleDisplayName") == "悄醒", "Application display identity was overwritten"
     assert (device / info["CFBundleExecutable"]).is_file()
     assert not (device / "embedded.mobileprovision").exists(), "Public unsigned build must contain no provisioning profile"
     assert not (device / "_CodeSignature").exists(), "Unexpected signing state"

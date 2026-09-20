@@ -45,6 +45,7 @@ jobs:
           python3 scripts/ios/prepare_resources.py
           cd ios
           xcodegen generate
+          git diff --exit-code -- HushWake/Info.plist
       - name: Select an available iPhone simulator
         run: |
           xcrun simctl list devices available --json > "$RUNNER_TEMP/devices.json"

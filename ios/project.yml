@@ -23,10 +23,9 @@ targets:
     sources:
       - path: HushWake
         excludes: [Info.plist]
-    info:
-      path: HushWake/Info.plist
     settings:
       base:
+        INFOPLIST_FILE: HushWake/Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: com.hushwake.app.ios
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     dependencies:
