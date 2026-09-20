@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  A safety-first Android alarm and sleep-sound app
+  A safety-first alarm and sleep-sound app for Android and iOS
 </p>
 
 <p align="center">
@@ -47,6 +47,8 @@ HushWake therefore takes a deliberately conservative approach:
 
 ## What works today
 
+The feature table below describes **Android**. The native iOS beta and its platform limits are described in the next section.
+
 | Area | Current implementation |
 | --- | --- |
 | Alarms | One-time and weekly schedules, exact scheduling, a single next-alarm focus card, reboot/time-change recovery, lock-screen entry, high-priority notification, stop, one snooze, and maximum ringing duration |
@@ -58,6 +60,16 @@ HushWake therefore takes a deliberately conservative approach:
 | Data | Local SQLite and SharedPreferences; Android backup and device transfer disabled; no network or account layer |
 
 App volume follows the system media volume and never raises it automatically. All audio is bundled for offline use, with sources and redistribution terms documented in [Audio sources and licenses](docs/audio-credits.md).
+
+## iOS beta
+
+The repository now includes a native **SwiftUI app for iOS / iPadOS 17+**: one-time and weekly alarms, one snooze, six alarm sounds, eight offline sleep sounds, a sleep timer with fade-out, and local storage. **Audible alarms require the app to remain in the foreground; background reminders are silent system notifications.** Sleep audio supports normal background playback.
+
+Only the built-in speaker or one explicitly identified wired-headphone route may play. Ambiguous Bluetooth/USB routes, AirPlay, car audio and unknown outputs are blocked. Route changes mute before stopping; real-device zero-leakage validation is still pending.
+
+Download the iOS attachments from the [current beta download page](https://github.com/chenzhiyong1994/hush-wake/releases/tag/v0.4.8-beta), or get the build artifacts from [iOS CI](https://github.com/chenzhiyong1994/hush-wake/actions/workflows/ios-ci.yml). The device **IPA is unsigned and requires your own signing before installation**. A simulator build and dedicated iOS source archive are also provided; the existing Android release tag's automatic source archives predate iOS support. No App Store submission is required.
+
+See [download and installation instructions](docs/ios-install.md) and [iOS architecture, tests and device checks](docs/ios-implementation.md). On a Mac, start with `swift test --package-path ios/Core`; use XcodeGen to generate the Xcode project after preparing the bundled audio.
 
 ## Project status
 

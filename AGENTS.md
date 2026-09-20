@@ -2,7 +2,7 @@
 
 ## 项目目的
 
-本仓库用于独立推进 HushWake（中文名：悄醒）Android App 的产品设计、技术验证、开发、测试与发布。
+本仓库用于独立推进 HushWake（中文名：悄醒）Android 与 iOS App 的产品设计、技术验证、开发、测试与开源分发。
 
 ## 不可破坏的核心约束
 
@@ -18,6 +18,7 @@
 - 产品范围、流程、状态、交互、异常和待决事项以 `docs/hush-wake-prd.md` 为当前事实来源。
 - 改变用户工作流、兼容等级、隐私承诺或数据策略时，同步更新 PRD。
 - Android 工程建立后，将构建、架构和测试细节写入代码附近的文档，不堆入本文件。
+- iOS 平台能力与验证入口见 `docs/ios-implementation.md`，开源下载与签名安装见 `docs/ios-install.md`；不得把 iOS 后台无声通知描述为 Android 精确有声唤醒。
 
 ## 当前开发门禁
 
@@ -25,6 +26,7 @@
 - 耳机播放不再要求人工测试记录；API 31–35 仅在本次单路由证据匹配唯一耳机后开放兼容有声，API 36+ 使用全路由强验证。
 - 按 `docs/device-test-guide.md` 完成智能外放、耳机闹钟、耳机白噪音、接入/断连竞态和耳机模式零扬声器串音验收，才可解除 beta 发布门禁。
 - 验证不得通过减少耳机路径检查、隐藏阻断结果或在耳机会话内启用扬声器降级来通过。
+- iOS 首版为独立 beta；蓝牙/USB 端口类型不足以证明唯一耳机时必须阻断，实体机证据不能由模拟器或 CI 替代。
 
 ## 最小验证入口
 
@@ -33,3 +35,4 @@
 - 闹铃素材连续性：`.\scripts\verify-alarm-audio.ps1`（需要 `ffmpeg`/`ffprobe`）。
 - 设备启动回归：`scripts/verify-app-launch.ps1`（需要 ADB 已连接且已有测试 APK）。
 - 核心安全结论必须补充实体机证据；本地构建通过不能替代 `docs/device-test-guide.md` 的测试。
+- iOS 核心：`swift test --package-path ios/Core`；Xcode 构建、集成/UI 测试与设备门禁见 `docs/ios-implementation.md`。

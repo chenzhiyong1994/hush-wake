@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  安全优先的 Android 智能输出闹钟与助眠声
+  安全优先的 Android 与 iOS 智能输出闹钟与助眠声
 </p>
 
 <p align="center">
@@ -47,6 +47,8 @@ HushWake 因此选择一条更克制的路线：
 
 ## 现在可以做什么
 
+下表描述 **Android** 能力；原生 iOS beta 及其平台限制见下一节。
+
 | 能力 | 当前实现 |
 | --- | --- |
 | 闹钟 | 一次性/周重复、精确调度、唯一下一次响铃焦点、开机和时间变化后重排、锁屏入口、高优先级通知、停止、一次稍后提醒、最长响铃 |
@@ -58,6 +60,16 @@ HushWake 因此选择一条更克制的路线：
 | 数据 | 本地 SQLite / SharedPreferences；Android 备份与设备迁移关闭；无网络和账号层 |
 
 应用音量完全跟随系统媒体音量，不会擅自调高系统音量。所有音频离线打包，来源和再分发许可可在[音频来源与许可](docs/audio-credits.md)中逐项审查。
+
+## iOS beta
+
+已新增 **iOS / iPadOS 17+ 原生 SwiftUI 应用**：单次与周重复闹钟、一次稍后提醒、6 种闹铃、8 种离线助眠声、睡眠定时与渐隐、本地保存。**有声闹钟需要应用保持前台，后台或锁屏仅发送无声系统通知。** 助眠声支持正常后台音频播放。
+
+仅内置扬声器或系统明确识别的唯一有线耳机可通过本次路由检查后播放；不明确的蓝牙/USB、AirPlay、车载及未知输出保持阻断。路由变化先静音再停止，实体机零串音验证仍待完成。
+
+在[当前 beta 下载页](https://github.com/chenzhiyong1994/hush-wake/releases/tag/v0.4.8-beta)获取 iOS 专用附件，或从 [iOS CI](https://github.com/chenzhiyong1994/hush-wake/actions/workflows/ios-ci.yml) 获取成功构建的产物。**IPA 未签名，需要使用自己的身份签名后才能安装。** 同时提供模拟器包及独立 iOS 源码附件；页面中原 Android 标签的自动源码归档早于 iOS 支持，不包含新工程。不涉及 App Store 上架。
+
+具体步骤见 [iOS 下载与安装](docs/ios-install.md)，架构、测试和设备验收见 [iOS 实现说明](docs/ios-implementation.md)。Mac 上可先运行 `swift test --package-path ios/Core`，准备音频后通过 XcodeGen 生成 Xcode 工程。
 
 ## 项目状态
 

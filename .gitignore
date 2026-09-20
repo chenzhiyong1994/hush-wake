@@ -28,3 +28,16 @@ service-account*.json
 *.hprof
 .DS_Store
 Thumbs.db
+
+# Generated iOS projects, resources, build products and signing material
+ios/*.xcodeproj/
+ios/HushWake/GeneratedResources/
+**/.build/
+**/.swiftpm/
+**/DerivedData/
+**/xcuserdata/
+*.xcuserstate
+*.ipa
+*.mobileprovision
+*.provisionprofile
+__pycache__/

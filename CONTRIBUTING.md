@@ -25,6 +25,8 @@
 
 模拟器或设备回归入口见 README。模拟器结果不能替代真实耳机的零扬声器串音验证。
 
+iOS 开发需要 Mac / Xcode 16.4、XcodeGen 与 FFmpeg。核心验证运行 `swift test --package-path ios/Core`，工程生成、Xcode 集成/UI 测试与平台边界见 [iOS 实现说明](docs/ios-implementation.md)。iOS 不采用系统有声通知替代路由守卫，未签名 IPA 需要个人签名后才能安装。
+
 ## 安全边界
 
 - 耳机会话无法确认实际输出路径时必须保持静音。

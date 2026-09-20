@@ -1,0 +1,92 @@
+name: iOS CI and downloads
+
+on:
+  push:
+    branches: [main, 'codex/ios-support']
+    paths: ['ios/**', 'scripts/ios/**', '.github/workflows/ios-ci.yml', 'app/src/main/res/raw/**', 'docs/audio-credits.md', 'docs/ios-*.md']
+  pull_request:
+    paths: ['ios/**', 'scripts/ios/**', '.github/workflows/ios-ci.yml', 'app/src/main/res/raw/**', 'docs/audio-credits.md', 'docs/ios-*.md']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test-package:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Select Xcode and install build tools
+        run: |
+          sudo xcode-select -s /Applications/Xcode_16.4.app/Contents/Developer
+          xcodebuild -version
+          brew install xcodegen ffmpeg
+      - name: Test scheduling and route guard
+        run: swift test --package-path ios/Core
+      - name: Prepare offline audio and generate Xcode project
+        run: |
+          python3 scripts/ios/prepare_resources.py
+          cd ios
+          xcodegen generate
+      - name: Select an available iPhone simulator
+        run: |
+          xcrun simctl list devices available --json > "$RUNNER_TEMP/devices.json"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          data = json.loads(Path(os.environ['RUNNER_TEMP'], 'devices.json').read_text())
+          phones = [d for runtime, devices in data['devices'].items() if 'iOS' in runtime
+                    for d in devices if d.get('isAvailable') and 'iPhone' in d['name']]
+          if not phones:
+              raise SystemExit('No available iPhone simulator')
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              output.write('SIMULATOR_ID=' + phones[0]['udid'] + '\n')
+          PY
+        # GITHUB_ENV becomes available to the following step.
+      - name: Run iOS integration and UI tests
+        run: |
+          xcrun simctl bootstatus "$SIMULATOR_ID" -b
+          set -o pipefail
+          xcodebuild -project ios/HushWake.xcodeproj -scheme HushWake \
+            -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
+            -derivedDataPath ios/build/Simulator -resultBundlePath ios/build/Tests.xcresult \
+            CODE_SIGNING_ALLOWED=NO test | tee "$RUNNER_TEMP/ios-tests.log"
+          xcrun simctl launch "$SIMULATOR_ID" com.hushwake.app.ios
+          xcrun simctl io "$SIMULATOR_ID" screenshot ios/build/simulator.png
+          xcrun xcresulttool export attachments --path ios/build/Tests.xcresult --output-path ios/build/screenshots
+      - name: Build unsigned iPhone and iPad application
+        run: |
+          set -o pipefail
+          xcodebuild -project ios/HushWake.xcodeproj -scheme HushWake -configuration Release \
+            -destination 'generic/platform=iOS' -derivedDataPath ios/build/Device \
+            CODE_SIGNING_ALLOWED=NO build | tee "$RUNNER_TEMP/ios-build.log"
+      - name: Package verified downloads
+        run: |
+          python3 scripts/ios/package.py \
+            --device ios/build/Device/Build/Products/Release-iphoneos/HushWake.app \
+            --simulator ios/build/Simulator/Build/Products/Debug-iphonesimulator/HushWake.app \
+            --output ios/build/downloads
+      - name: Upload iOS downloads
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: HushWake-iOS-beta-downloads
+          path: ios/build/downloads/
+          retention-days: 90
+          if-no-files-found: error
+      - name: Upload test evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: HushWake-iOS-test-evidence
+          path: |
+            ios/build/Tests.xcresult
+            ios/build/simulator.png
+            ios/build/screenshots/
+            ${{ runner.temp }}/ios-tests.log
+            ${{ runner.temp }}/ios-build.log
+          retention-days: 14
