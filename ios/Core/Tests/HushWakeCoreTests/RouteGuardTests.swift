@@ -56,4 +56,20 @@ final class RouteGuardTests: XCTestCase {
         guardrail.end()
         XCTAssertFalse(guardrail.verify(outputs: speaker))
     }
+
+    func testSoundSwitchCannotContinueAnInvalidatedOrReroutedSession() {
+        let sink = Sink()
+        let guardrail = RouteGuard(sink: sink)
+        let headphones = [Output(kind: .headphones, id: "headphones")]
+        let speaker = [Output(kind: .speaker, id: "speaker")]
+        guardrail.begin(outputs: headphones)
+        guardrail.verify(outputs: headphones)
+        XCTAssertTrue(guardrail.matches(outputs: headphones))
+        XCTAssertFalse(guardrail.matches(outputs: speaker))
+        guardrail.invalidate()
+        XCTAssertFalse(guardrail.matches(outputs: speaker))
+        XCTAssertFalse(guardrail.matches(outputs: headphones))
+        guardrail.end()
+        XCTAssertFalse(guardrail.matches(outputs: speaker))
+    }
 }

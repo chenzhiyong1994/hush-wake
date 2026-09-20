@@ -60,11 +60,18 @@ final class GuardedAudio: @unchecked Sendable {
     }
 
     @discardableResult
-    func play(sound: String, until end: Date, fadeSeconds: TimeInterval = 0) -> Bool {
+    func play(sound: String, until end: Date, fadeSeconds: TimeInterval = 0, continuingSession: Bool = false) -> Bool {
         lock.lock()
         defer { lock.unlock() }
-        finishLocked()
+        sink.mute()
         let before = outputs()
+        // A sound change is part of the current session, not fresh permission to
+        // use the speaker. UI state may lag a disconnect or pause notification.
+        if continuingSession && (!routeGuard.matches(outputs: before) || sink.player?.isPlaying != true) {
+            blockLocked("本次播放已结束或路由发生变化，请确认输出后手动重新播放。")
+            return false
+        }
+        finishLocked()
         do {
             try session.setCategory(.playback, mode: .default, options: [])
             try session.setActive(true)

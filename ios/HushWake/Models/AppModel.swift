@@ -238,7 +238,7 @@ final class AppModel: ObservableObject {
         let end = sleepEnd.flatMap { $0 > Date() ? $0 : nil }
             ?? SleepDeadline(start: Date(), minutes: saved.sleepMinutes, fadeSeconds: Double(saved.fadeSeconds)).end
         sleepEnd = end
-        if audio.play(sound: selectedSleep, until: end, fadeSeconds: Double(saved.fadeSeconds)) {
+        if audio.play(sound: selectedSleep, until: end, fadeSeconds: Double(saved.fadeSeconds), continuingSession: sound != nil) {
             MPNowPlayingInfoCenter.default().nowPlayingInfo = [
                 MPMediaItemPropertyTitle: Sound.sleep.first(where: { $0.id == selectedSleep })?.name ?? "悄醒",
                 MPMediaItemPropertyArtist: "HushWake", MPNowPlayingInfoPropertyPlaybackRate: 1.0
