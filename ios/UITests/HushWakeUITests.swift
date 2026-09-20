@@ -21,9 +21,11 @@ final class HushWakeUITests: XCTestCase {
         app.tabBars.buttons["助眠"].tap()
         XCTAssertTrue(app.navigationBars["慢慢安静"].waitForExistence(timeout: 5))
         let rain = app.buttons["sleep-sound-sleep_rain"]
-        for _ in 0..<4 {
+        for _ in 0..<8 {
             if rain.isHittable { break }
-            app.swipeUp()
+            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.72))
+            let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.52))
+            start.press(forDuration: 0.1, thenDragTo: end)
         }
         XCTAssertTrue(rain.isHittable)
         rain.tap()

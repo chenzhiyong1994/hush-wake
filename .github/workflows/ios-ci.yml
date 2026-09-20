@@ -73,7 +73,12 @@ jobs:
           xcrun simctl launch "$SIMULATOR_ID" com.hushwake.app.ios
           sleep 2
           xcrun simctl io "$SIMULATOR_ID" screenshot ios/build/simulator.png
-          xcrun xcresulttool export attachments --path ios/build/Tests.xcresult --output-path ios/build/screenshots
+      - name: Export test screenshots
+        if: always()
+        run: |
+          if [ -d ios/build/Tests.xcresult ]; then
+            xcrun xcresulttool export attachments --path ios/build/Tests.xcresult --output-path ios/build/screenshots
+          fi
       - name: Build unsigned iPhone and iPad application
         run: |
           set -o pipefail
@@ -106,7 +111,7 @@ jobs:
             ${{ runner.temp }}/ios-build.log
           retention-days: 14
       - name: Upload screenshots for visual review
-        if: success()
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: HushWake-iOS-screenshots
