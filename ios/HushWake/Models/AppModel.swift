@@ -24,16 +24,18 @@ final class AppModel: ObservableObject {
     private var ringEnd: Date?
     private var previewing = false
     private var notificationRevision = 0
+    private var audioRevision = 0
 
     init(storage: LocalStore = LocalStore()) {
         self.storage = storage
         do { saved = try storage.load(); loaded = true }
-        catch { error = "本地数据无法读取，已保留原文件并停止保存。请检查设备空间或重新打开应用。" }
+        catch { self.error = "本地数据无法读取，已保留原文件并停止保存。请检查设备空间或重新打开应用。" }
         reconcileExpired()
         rebuild()
-        audio.onChange = { [weak self] message, playing in
+        audio.onChange = { [weak self] revision, message, playing in
             Task { @MainActor [weak self] in
-                guard let self else { return }
+                guard let self, revision > self.audioRevision else { return }
+                self.audioRevision = revision
                 self.audioStatus = message
                 self.isPlaying = playing
                 if !playing { MPNowPlayingInfoCenter.default().nowPlayingInfo = nil }
@@ -62,7 +64,7 @@ final class AppModel: ObservableObject {
     @discardableResult private func persist(_ state: SavedState) -> Bool {
         guard loaded else { error = "本地数据尚未成功读取，无法覆盖保存。"; return false }
         do { try storage.save(state); saved = state; return true }
-        catch { error = "保存失败，修改未生效。请检查设备可用空间后重试。"; return false }
+        catch { self.error = "保存失败，修改未生效。请检查设备可用空间后重试。"; return false }
     }
 
     @discardableResult func save(_ alarm: Alarm) -> Bool {
@@ -137,7 +139,7 @@ final class AppModel: ObservableObject {
     func requestNotifications() {
         Task {
             do { notificationAllowed = try await notifications.requestPermission(); rebuild() }
-            catch { error = "通知授权未完成，请在系统设置中检查。" }
+            catch { self.error = "通知授权未完成，请在系统设置中检查。" }
         }
     }
 
@@ -162,7 +164,7 @@ final class AppModel: ObservableObject {
         Task {
             do { try await notifications.replace(alarms: alarms) }
             catch {
-                if revision == notificationRevision { error = "系统通知登记失败。前台闹钟仍可运行，请打开设置检查通知权限。" }
+                if revision == notificationRevision { self.error = "系统通知登记失败。前台闹钟仍可运行，请打开设置检查通知权限。" }
             }
         }
     }

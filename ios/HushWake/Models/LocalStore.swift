@@ -19,8 +19,10 @@ struct LocalStore {
         guard FileManager.default.fileExists(atPath: file.path) else { return SavedState() }
         let state = try JSONDecoder().decode(SavedState.self, from: Data(contentsOf: file))
         guard state.alarms.count <= 8,
+              (5...120).contains(state.sleepMinutes), [0, 15, 30].contains(state.fadeSeconds),
               Set(state.alarms.map(\.id)).count == state.alarms.count,
               state.alarms.allSatisfy({ alarm in (0...23).contains(alarm.hour) && (0...59).contains(alarm.minute)
+                  && alarm.label.count <= 60
                   && alarm.weekdays.allSatisfy { (1...7).contains($0) }
                   && Sound.alarms.contains(where: { $0.id == alarm.sound }) }) else {
             throw CocoaError(.fileReadCorruptFile)

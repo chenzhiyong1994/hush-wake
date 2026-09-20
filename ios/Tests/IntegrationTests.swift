@@ -1,5 +1,6 @@
 import XCTest
 import UserNotifications
+import AVFoundation
 import HushWakeCore
 @testable import HushWake
 
@@ -26,6 +27,23 @@ final class IntegrationTests: XCTestCase {
         XCTAssertEqual(requests.count, 64)
         XCTAssertEqual(Set(requests.map(\.identifier)).count, 64)
     }
+    func testExpiredSnoozeDoesNotRemoveFutureWeeklyNotifications() {
+        let now = Date()
+        var alarm = Alarm(weekdays: [2, 6])
+        alarm.snooze(from: now.addingTimeInterval(-600))
+        let requests = NotificationScheduler.requests(for: alarm, now: now)
+        XCTAssertEqual(requests.count, 2)
+        XCTAssertTrue(requests.allSatisfy { $0.trigger?.repeats == true && $0.content.sound == nil })
+    }
+    func testOutOfRangeStoredPreferencesAreRejected() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = LocalStore(directory: directory)
+        var state = SavedState()
+        state.sleepMinutes = -5
+        try store.save(state)
+        XCTAssertThrowsError(try store.load())
+    }
     func testLocalStateRoundTripsAndCorruptionIsNotOverwritten() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -49,5 +67,3 @@ final class IntegrationTests: XCTestCase {
         }
     }
 }
-
-import AVFoundation

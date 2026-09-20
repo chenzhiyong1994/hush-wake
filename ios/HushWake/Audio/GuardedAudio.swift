@@ -20,7 +20,13 @@ final class GuardedAudio: @unchecked Sendable {
     private var deadline: Date?
     private var fade: TimeInterval = 0
     private var generation = 0
-    var onChange: (@Sendable (String, Bool) -> Void)?
+    private var eventRevision = 0
+    var onChange: (@Sendable (Int, String, Bool) -> Void)?
+
+    private func reportLocked(_ message: String, _ playing: Bool) {
+        eventRevision += 1
+        onChange?(eventRevision, message, playing)
+    }
 
     init() {
         for name in [AVAudioSession.routeChangeNotification, AVAudioSession.interruptionNotification,
@@ -86,7 +92,7 @@ final class GuardedAudio: @unchecked Sendable {
             timer.setEventHandler { [weak self] in self?.tick(revisionSnapshot: revisionSnapshot) }
             self.timer = timer
             timer.resume()
-            onChange?(before.first?.kind == .headphones ? "有线耳机播放中 · 路由守卫开启" : "手机扬声器播放中", true)
+            reportLocked(before.first?.kind == .headphones ? "有线耳机播放中 · 路由守卫开启" : "手机扬声器播放中", true)
             return true
         } catch {
             blockLocked("无法启动音频会话，已保持静音。")
@@ -97,7 +103,7 @@ final class GuardedAudio: @unchecked Sendable {
     func stop() {
         lock.lock()
         finishLocked()
-        onChange?("播放已停止", false)
+        reportLocked("播放已停止", false)
         lock.unlock()
         // Deactivation may itself post notifications. No active player remains.
         try? session.setActive(false, options: .notifyOthersOnDeactivation)
@@ -117,7 +123,7 @@ final class GuardedAudio: @unchecked Sendable {
         timer?.cancel()
         timer = nil
         deadline = nil
-        onChange?(message, false)
+        reportLocked(message, false)
     }
 
     private func invalidate() {
@@ -137,7 +143,7 @@ final class GuardedAudio: @unchecked Sendable {
         }
         guard let deadline, Date() < deadline else {
             finishLocked()
-            onChange?("定时结束", false)
+            reportLocked("定时结束", false)
             return
         }
         guard sink.player?.isPlaying == true else {

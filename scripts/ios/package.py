@@ -27,10 +27,15 @@ def main():
     with (device / "Info.plist").open("rb") as file:
         info = plistlib.load(file)
     assert info["CFBundleIdentifier"] == "com.hushwake.app.ios"
+    assert info["CFBundleSupportedPlatforms"] == ["iPhoneOS"], "A simulator app cannot be shipped as the device IPA"
     assert (device / info["CFBundleExecutable"]).is_file()
     assert not (device / "embedded.mobileprovision").exists(), "Public unsigned build must contain no provisioning profile"
     assert not (device / "_CodeSignature").exists(), "Unexpected signing state"
     assert len(list(device.glob("*.m4a"))) == 14, "Incomplete offline audio bundle"
+    architectures = subprocess.check_output(["xcrun", "lipo", "-archs", str(device / info["CFBundleExecutable"])], text=True)
+    assert "arm64" in architectures.split(), "The device app must include arm64"
+    with (args.simulator / "Info.plist").open("rb") as file:
+        assert plistlib.load(file)["CFBundleSupportedPlatforms"] == ["iPhoneSimulator"]
     version = info["CFBundleShortVersionString"]
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)

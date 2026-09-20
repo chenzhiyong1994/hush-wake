@@ -19,6 +19,9 @@ jobs:
   build-test-package:
     runs-on: macos-15
     timeout-minutes: 45
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_INSTALL_UPGRADE: "1"
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - name: Select Xcode and install build tools
@@ -54,9 +57,12 @@ jobs:
           set -o pipefail
           xcodebuild -project ios/HushWake.xcodeproj -scheme HushWake \
             -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
+            -parallel-testing-enabled NO \
             -derivedDataPath ios/build/Simulator -resultBundlePath ios/build/Tests.xcresult \
             CODE_SIGNING_ALLOWED=NO test | tee "$RUNNER_TEMP/ios-tests.log"
+          xcrun simctl install "$SIMULATOR_ID" ios/build/Simulator/Build/Products/Debug-iphonesimulator/HushWake.app
           xcrun simctl launch "$SIMULATOR_ID" com.hushwake.app.ios
+          sleep 2
           xcrun simctl io "$SIMULATOR_ID" screenshot ios/build/simulator.png
           xcrun xcresulttool export attachments --path ios/build/Tests.xcresult --output-path ios/build/screenshots
       - name: Build unsigned iPhone and iPad application
